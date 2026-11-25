@@ -8,7 +8,7 @@ Open `index.html` in a browser or serve this repository with any static host. No
 
 - The daily puzzle is deterministic and changes at midnight UTC.
 - Score: `round(100 × answer value ÷ target)`, capped at 100. Going over scores zero.
-- Answers lock once submitted. Search suggestions show names only; the value appears after submission.
+- Type an answer and lock it in. Clear typos are autocorrected on submission, and the value appears after the answer is accepted.
 - Daily attempts, results, streaks, and score history stay in local browser storage.
 - Practice rounds do not change daily stats.
 

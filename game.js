@@ -8,7 +8,7 @@
     {category:'ANIMALS',difficulty:'MEDIUM',prompt:'Name an animal with a typical lifespan as close as possible without going over.',unit:'years',targets:[10,20,40,60,80,100],source:'San Diego Zoo Animal Fact Sheets (typical ranges)',url:'https://animals.sandiegozoo.org/',items:[['House mouse',2],['Domestic cat',15],['African grey parrot',50],['African elephant',65],['Blue whale',90],['Giant tortoise',100],['Red fox',5],['Bald eagle',20],['Horse',30],['Chimpanzee',40],['Orca',50],['Bowhead whale',200]]}
   ];
   const $=id=>document.getElementById(id), views=['intro','game','results','stats'];
-  const state={rounds:[],index:0,selected:null,practice:false,seed:0};
+  const state={rounds:[],index:0,practice:false,seed:0};
   const read=()=>{try{return JSON.parse(localStorage.getItem('nearmiss-v1')||'{}')}catch{return{}}};
   const write=o=>localStorage.setItem('nearmiss-v1',JSON.stringify(o));
   const utcDate=()=>new Date().toISOString().slice(0,10);
@@ -22,15 +22,82 @@
   function current(){return state.rounds[state.index]}
   function resume(){const saved=read(),daily=saved.days?.[utcDate()];if(daily){state.rounds=daily.rounds||[];state.index=daily.index||0;if(daily.done){renderResults(daily);return true}if(state.rounds.length){show('game');renderRound();return true}}return false}
   function persist(){const all=read();all.days=all.days||{};all.days[utcDate()]={rounds:state.rounds,index:state.index,done:false};write(all)}
-  function start(practice=false){state.practice=practice;state.seed=hash(practice?utcDate()+':practice:'+Date.now():utcDate());state.rounds=makePuzzle(state.practice?utcDate()+':practice:'+state.seed:utcDate());state.index=0;state.selected=null;if(!practice)persist();show('game');renderRound()}
-  function renderRound(){const q=current();if(!q){finish();return}state.selected=null;$('round-category').textContent=q.category;$('round-difficulty').textContent=q.difficulty;$('round-count').innerHTML=`${String(state.index+1).padStart(2,'0')} <b>/ 05</b>`;$('round-progress').style.width=`${((state.index+1)/5)*100}%`;$('question-prompt').textContent=q.prompt;$('target-value').textContent=fmt(q.target,q.unit);$('entry-area').classList.remove('hidden');$('reveal').classList.add('hidden');$('selection').classList.add('hidden');$('answer-input').value='';$('input-hint').textContent='Pick an answer, then lock it in.';$('answer-input').disabled=false;$('answer-input').focus({preventScroll:true});$('daily-label').textContent=state.practice?'PRACTICE MODE':`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`}
-  function suggestions(){const q=current(),raw=$('answer-input').value.trim().toLocaleLowerCase(),norm=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');const list=q.answers.filter(a=>!raw||norm(a.name).toLowerCase().includes(norm(raw))||a.aliases.some(x=>norm(x).toLowerCase().includes(norm(raw)))).slice(0,7),box=$('suggestions');box.innerHTML='';if(!raw||!list.length){box.classList.add('hidden');return}list.forEach(a=>{const b=document.createElement('button');b.className='suggestion';b.setAttribute('role','option');b.textContent=a.name;b.onclick=()=>choose(a);box.appendChild(b)});box.classList.remove('hidden')}
-  function editDistance(a,b){let prev=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){const row=[i];for(let j=1;j<=b.length;j++)row[j]=Math.min(row[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=row}return prev[b.length]}
-  function fuzzySuggestions(){const q=current(),raw=$('answer-input').value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),box=$('suggestions');if(!raw)return;const found=q.answers.map(a=>({a,d:Math.min(...[a.name,...a.aliases].map(n=>{const x=n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();return x.includes(raw)?0:editDistance(raw,x.slice(0,Math.min(x.length,raw.length+1)))}))})).filter(x=>x.d<=2).sort((x,y)=>x.d-y.d).slice(0,7);if(!found.length)return;box.innerHTML='';found.forEach(({a},i)=>{const b=document.createElement('button');b.className='suggestion';b.setAttribute('role','option');b.setAttribute('aria-selected',String(i===0));b.textContent=a.name;b.onclick=()=>choose(a);box.appendChild(b)});box.classList.remove('hidden')}
-  function choose(a){state.selected=a;$('suggestions').classList.add('hidden');$('selected-name').textContent=a.name;$('selection').classList.remove('hidden');$('input-hint').textContent='One answer. Once you lock it in, it’s final.'}
+  function start(practice=false){state.practice=practice;state.seed=hash(practice?utcDate()+':practice:'+Date.now():utcDate());state.rounds=makePuzzle(state.practice?utcDate()+':practice:'+state.seed:utcDate());state.index=0;if(!practice)persist();show('game');renderRound()}
+  function renderRound(){const q=current();if(!q){finish();return}$('round-category').textContent=q.category;$('round-difficulty').textContent=q.difficulty;$('round-count').innerHTML=`${String(state.index+1).padStart(2,'0')} <b>/ 05</b>`;$('round-progress').style.width=`${((state.index+1)/5)*100}%`;$('question-prompt').textContent=q.prompt;$('target-value').textContent=fmt(q.target,q.unit);$('entry-area').classList.remove('hidden');$('reveal').classList.add('hidden');$('answer-input').value='';clearAnswerError();$('answer-input').focus({preventScroll:true});$('daily-label').textContent=state.practice?'PRACTICE MODE':`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`}
+  const answerHint = 'Type your answer, then lock it in.';
+  const normalizeAnswer = value => value.toLowerCase().normalize('NFD')
+    .replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+  function editDistance(a, b) {
+    let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+    let earlier;
+    for (let i = 1; i <= a.length; i++) {
+      const row = [i];
+      for (let j = 1; j <= b.length; j++) {
+        row[j] = Math.min(row[j - 1] + 1, previous[j] + 1,
+          previous[j - 1] + Number(a[i - 1] !== b[j - 1]));
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+          row[j] = Math.min(row[j], earlier[j - 2] + 1);
+        }
+      }
+      earlier = previous;
+      previous = row;
+    }
+    return previous[b.length];
+  }
+
+  function matchAnswer(raw, answers) {
+    const candidates = answers.map(answer => ({
+      answer,
+      names: [answer.name, ...(answer.aliases ?? [])].map(normalizeAnswer)
+    }));
+    const exact = candidates.filter(({ names }) => names.includes(raw));
+    if (exact.length) {
+      return exact.length === 1 ? { answer: exact[0].answer, corrected: false } : null;
+    }
+
+    const maxEdits = raw.length >= 8 ? 2 : raw.length >= 4 ? 1 : 0;
+    if (!maxEdits) return null;
+    let bestDistance = maxEdits + 1;
+    let bestAnswer = null;
+    for (const { answer, names } of candidates) {
+      const distance = Math.min(Infinity, ...names
+        .filter(name => name.length >= 4 && Math.abs(name.length - raw.length) <= maxEdits)
+        .map(name => editDistance(raw, name)));
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestAnswer = answer;
+      } else if (distance === bestDistance) {
+        bestAnswer = null;
+      }
+    }
+    return bestAnswer ? { answer: bestAnswer, corrected: true } : null;
+  }
+
+  function clearAnswerError() {
+    $('answer-input').removeAttribute('aria-invalid');
+    $('input-hint').textContent = answerHint;
+  }
+
   function score(q,a){return a.value>q.target?0:Math.min(100,Math.max(0,Math.round(100*a.value/q.target)))}
   function label(s,a,q){if(a.value>q.target)return'BUST';if(s===100)return'PERFECT HIT';if(s>=98)return'BULLSEYE';if(s>=90)return'NEAR MISS';if(s>=75)return'CLOSE CALL';if(s>=50)return'SAFE BET';return'WAY OFF'}
-  function submit(){if(!state.selected)return;const q=current(),a=state.selected,s=score(q,a);state.rounds[state.index].result={name:a.name,value:a.value,score:s,bust:a.value>q.target,label:label(s,a,q),source:q.source,url:q.url};$('entry-area').classList.add('hidden');$('reveal').classList.remove('hidden');$('result-name').textContent=a.name;$('score-chip').textContent=s;$('score-chip').className='score-chip '+(a.value>q.target?'bust':s<75?'close':'');
+  function submit(event) {
+    event.preventDefault();
+    if ($('entry-area').classList.contains('hidden')) return;
+    const q = current();
+    const input = $('answer-input');
+    const raw = normalizeAnswer(input.value);
+    const match = raw && matchAnswer(raw, q.answers);
+    if (!match) {
+      input.setAttribute('aria-invalid', 'true');
+      $('input-hint').textContent = raw ? 'No clear match. Check the spelling or try another answer.' : 'Enter an answer first.';
+      input.focus();
+      return;
+    }
+    const { answer: a, corrected } = match;
+    $('result-pick-label').textContent = corrected ? 'AUTOCORRECTED PICK' : 'YOUR PICK';
+    const s = score(q, a);
+    state.rounds[state.index].result={name:a.name,value:a.value,score:s,bust:a.value>q.target,label:label(s,a,q),source:q.source,url:q.url};$('entry-area').classList.add('hidden');$('reveal').classList.remove('hidden');$('result-name').textContent=a.name;$('score-chip').textContent=s;$('score-chip').className='score-chip '+(a.value>q.target?'bust':s<75?'close':'');
     const reveal = $('reveal');
     reveal.dataset.outcome = a.value > q.target ? 'bust' : s >= 90 ? 'near' : 'under';
     // Leave the final 15% of the meter for guesses beyond the target.
@@ -39,7 +106,7 @@
     reveal.style.setProperty('--target-position', `${targetPosition}%`);
     reveal.style.setProperty('--guess-position', `${guessPosition}%`);
     reveal.style.setProperty('--guess-ratio', guessPosition / 100);$('actual-value').textContent=metric(a.value,q.unit);$('difference').textContent=metric(Math.abs(q.target-a.value),q.unit);$('result-label').textContent=label(s,a,q);$('result-label').title=`Source: ${q.source}`;let note=document.getElementById('source-note');if(!note){note=document.createElement('p');note.id='source-note';note.className='source-note';document.querySelector('.result-details').after(note)}note.innerHTML=`Source: <a href="${q.url}" target="_blank" rel="noreferrer">${escapeHtml(q.source)}</a>`;note.style.cssText='font-size:12px;color:var(--muted);margin:12px 0 0';$('next-btn').innerHTML=state.index===4?'See your score <span>↗</span>':'Next round <span>↗</span>';if(!state.practice)persist()}
-  function advance(){state.index++;state.selected=null;if(state.index>=5){finish();return}if(!state.practice)persist();renderRound()}
+  function advance(){state.index++;if(state.index>=5){finish();return}if(!state.practice)persist();renderRound()}
   function titleFor(n){return n>=475?'INSANE':n>=450?'SHARPSHOOTER':n>=400?'DANGEROUS':n>=350?'SOLID':n>=250?'MID':'ROUGH DAY'}
   function finish(){const score=state.rounds.reduce((n,q)=>n+(q.result?.score||0),0),result={rounds:state.rounds,index:5,done:true,score,date:utcDate()};if(!state.practice){const all=read();all.days=all.days||{};all.days[utcDate()]=result;all.history=all.history||[];if(!all.history.some(x=>x.date===utcDate()))all.history.push({date:utcDate(),score});all.history=all.history.slice(-14);const prior=all.stats||{games:0,best:0,streak:0,longest:0,lastDate:null};const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);prior.games++;prior.best=Math.max(prior.best,score);prior.streak=prior.lastDate===yesterday?prior.streak+1:prior.lastDate===utcDate()?prior.streak:1;prior.longest=Math.max(prior.longest,prior.streak);prior.lastDate=utcDate();all.stats=prior;write(all)}renderResults(result)}
   function renderResults(result){const rounds=result.rounds||[],score=result.score??rounds.reduce((a,q)=>a+(q.result?.score||0),0),busts=rounds.filter(q=>q.result?.bust).length,perfect=rounds.filter(q=>q.result?.score===100).length;$('final-title').textContent=titleFor(score)+'.';$('total-score').textContent=String(score).padStart(3,'0');$('results-sub').textContent=state.practice?'Practice round complete. Daily stats stay untouched.':`Daily no. ${String(dayNumber()).padStart(3,'0')} · ${new Intl.DateTimeFormat('en',{weekday:'long',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(utcDate()+'T00:00:00Z'))} UTC`;$('score-list').innerHTML=rounds.map((q,i)=>`<div class="score-row"><span class="score-index">0${i+1}</span><div><div class="score-name">${escapeHtml(q.result?.name||'—')}</div><div class="score-category">${q.category} · ${q.result?.label||''}</div></div><span class="score-points">${q.result?.score??0}</span><span class="score-symbol ${q.result?.bust?'bust':''}">${q.result?.bust?'×':q.result?.score===100?'★':'●'}</span></div>`).join('');const best=rounds.reduce((a,q)=>!a||q.result.score>a.result.score?q:a,null);$('result-metrics').innerHTML=`<div class="metric"><span>BUSTS</span><b>${busts}</b></div><div class="metric"><span>PERFECTS</span><b>${perfect}</b></div><div class="metric"><span>BEST ROUND</span><b>${best?.category||'—'}</b></div>`;$('practice-btn').textContent=state.practice?'Try another practice':'Practice mode';$('share-btn').onclick=()=>share(rounds,score,busts);tick();show('results')}
@@ -48,5 +115,12 @@
   function tick(){const update=()=>{const n=new Date(),next=Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()+1),d=Math.max(0,next-n.getTime()),h=Math.floor(d/3600000),m=Math.floor(d%3600000/60000),s=Math.floor(d%60000/1000);$('countdown').textContent=[h,m,s].map(x=>String(x).padStart(2,'0')).join(':')};update();clearInterval(window.countdownInterval);window.countdownInterval=setInterval(update,1000)}
   function openStats(){const all=read(),s=all.stats||{games:0,best:0,streak:0,longest:0},hist=all.history||[];$('stats-grid').innerHTML=[[s.games,'GAMES'],[s.best,'BEST SCORE'],[s.streak,'CURRENT STREAK'],[s.longest,'BEST STREAK'],[hist.length?Math.round(hist.reduce((a,x)=>a+x.score,0)/hist.length):0,'AVG SCORE'],[hist.reduce((a,x)=>a+x.score,0),'TOTAL POINTS']].map(([v,l])=>`<div class="stat-cell"><label>${l}</label><strong>${String(v).padStart(2,'0')}</strong></div>`).join('');$('chart').innerHTML=Array.from({length:7},(_,i)=>hist[hist.length-7+i]).map(x=>`<div class="chart-col"><div class="chart-bar" style="height:${Math.max(3,(x?.score||0)/5)}%" title="${x?.score||0}"></div><span>${x?.date?.slice(5)||'·'}</span></div>`).join('');show('stats')}
   function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
-  $('start-btn').onclick=()=>resume()||start(false);$('answer-input').addEventListener('input',suggestions);$('answer-input').addEventListener('input',()=>setTimeout(fuzzySuggestions,0));$('answer-input').addEventListener('keydown',e=>{const b=$('suggestions').querySelector('.suggestion');if(e.key==='Enter'&&b){e.preventDefault();b.click()}if(e.key==='Escape')$('suggestions').classList.add('hidden')});$('suggestions').addEventListener('keydown',e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();const a=[...$('suggestions').querySelectorAll('.suggestion')],i=a.indexOf(document.activeElement),n=(i+(e.key==='ArrowDown'?1:-1)+a.length)%a.length;a[n].focus()}});$('clear-input').onclick=()=>{$('answer-input').value='';$('answer-input').focus();suggestions()};$('submit-answer').onclick=submit;$('next-btn').onclick=advance;$('practice-btn').onclick=()=>start(true);$('stats-open').onclick=openStats;$('stats-close').onclick=()=>show('intro');$('help-open').onclick=()=>$('help-dialog').showModal();$('about-open').onclick=()=>$('about-dialog').showModal();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('daily-label').textContent=`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`;$('footer-today').textContent=new Intl.DateTimeFormat('en',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date());if(!resume()){$('start-btn').textContent='Play today';}
+  $('start-btn').onclick=()=>resume()||start(false);$('answer-input').addEventListener('input', clearAnswerError);
+  $('clear-input').onclick = () => {
+    $('answer-input').value = '';
+    clearAnswerError();
+    $('answer-input').focus();
+  };
+  $('entry-area').addEventListener('submit', submit);
+  $('next-btn').onclick=advance;$('practice-btn').onclick=()=>start(true);$('stats-open').onclick=openStats;$('stats-close').onclick=()=>show('intro');$('help-open').onclick=()=>$('help-dialog').showModal();$('about-open').onclick=()=>$('about-dialog').showModal();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('daily-label').textContent=`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`;$('footer-today').textContent=new Intl.DateTimeFormat('en',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date());if(!resume()){$('start-btn').textContent='Play today';}
 })();
