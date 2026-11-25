@@ -8,7 +8,8 @@ Open `index.html` in a browser or serve this repository with any static host. No
 
 - The daily puzzle is deterministic and changes at midnight UTC.
 - Score: `round(100 × answer value ÷ target)`, capped at 100. Going over scores zero.
-- Type an answer and lock it in. Clear typos are autocorrected on submission, and the value appears after the answer is accepted.
+- Each round has a 30-second shot clock. Clear typos are autocorrected, and unrecognized answers can be retried while the clock runs. A timeout scores zero.
+- The pixel golfer hits toward the flag for valid guesses. A guess that goes over the target lands in the water.
 - Daily attempts, results, streaks, and score history stay in local browser storage.
 - Practice rounds do not change daily stats.
 

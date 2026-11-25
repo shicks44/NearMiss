@@ -8,7 +8,7 @@
     {category:'ANIMALS',difficulty:'MEDIUM',prompt:'Name an animal with a typical lifespan as close as possible without going over.',unit:'years',targets:[10,20,40,60,80,100],source:'San Diego Zoo Animal Fact Sheets (typical ranges)',url:'https://animals.sandiegozoo.org/',items:[['House mouse',2],['Domestic cat',15],['African grey parrot',50],['African elephant',65],['Blue whale',90],['Giant tortoise',100],['Red fox',5],['Bald eagle',20],['Horse',30],['Chimpanzee',40],['Orca',50],['Bowhead whale',200]]}
   ];
   const $=id=>document.getElementById(id), views=['intro','game','results','stats'];
-  const state={rounds:[],index:0,practice:false,seed:0};
+  const state={rounds:[],index:0,practice:false,date:null,deadline:null};
   const read=()=>{try{return JSON.parse(localStorage.getItem('nearmiss-v1')||'{}')}catch{return{}}};
   const write=o=>localStorage.setItem('nearmiss-v1',JSON.stringify(o));
   const utcDate=()=>new Date().toISOString().slice(0,10);
@@ -20,10 +20,96 @@
   const makePuzzle=(key)=>{const r=rng(hash(key)),decks=[...DATA],out=[];for(let i=0;i<5;i++){const d=decks.splice(Math.floor(r()*decks.length),1)[0],target=d.targets[Math.floor(r()*d.targets.length)];out.push({...d,target,answers:d.items.map(([name,value,...aliases])=>({name,value,aliases}))})}return out};
   function show(name){views.forEach(v=>$(v).classList.toggle('hidden',v!==name));window.scrollTo(0,0)}
   function current(){return state.rounds[state.index]}
-  function resume(){const saved=read(),daily=saved.days?.[utcDate()];if(daily){state.rounds=daily.rounds||[];state.index=daily.index||0;if(daily.done){renderResults(daily);return true}if(state.rounds.length){show('game');renderRound();return true}}return false}
-  function persist(){const all=read();all.days=all.days||{};all.days[utcDate()]={rounds:state.rounds,index:state.index,done:false};write(all)}
-  function start(practice=false){state.practice=practice;state.seed=hash(practice?utcDate()+':practice:'+Date.now():utcDate());state.rounds=makePuzzle(state.practice?utcDate()+':practice:'+state.seed:utcDate());state.index=0;if(!practice)persist();show('game');renderRound()}
-  function renderRound(){const q=current();if(!q){finish();return}$('round-category').textContent=q.category;$('round-difficulty').textContent=q.difficulty;$('round-count').innerHTML=`${String(state.index+1).padStart(2,'0')} <b>/ 05</b>`;$('round-progress').style.width=`${((state.index+1)/5)*100}%`;$('question-prompt').textContent=q.prompt;$('target-value').textContent=fmt(q.target,q.unit);$('entry-area').classList.remove('hidden');$('reveal').classList.add('hidden');$('answer-input').value='';clearAnswerError();$('answer-input').focus({preventScroll:true});$('daily-label').textContent=state.practice?'PRACTICE MODE':`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`}
+  const roundDuration = 30000;
+  let roundClock;
+  let statsReturn = 'intro';
+
+  function resume() {
+    const date = utcDate();
+    const daily = read().days?.[date];
+    if (!daily) return false;
+    state.practice = false;
+    state.date = date;
+    state.rounds = daily.rounds || [];
+    state.index = daily.index || 0;
+    state.deadline = daily.deadline ?? null;
+    if (daily.done) {
+      renderResults(daily);
+      return true;
+    }
+    if (!state.rounds.length) return false;
+    show('game');
+    renderRound();
+    return true;
+  }
+
+  function persist() {
+    if (state.practice) return;
+    const all = read();
+    all.days ||= {};
+    if (all.days[state.date]?.done) return;
+    all.days[state.date] = {
+      rounds: state.rounds, index: state.index, deadline: state.deadline, done: false
+    };
+    write(all);
+  }
+
+  function start(practice = false) {
+    state.practice = practice;
+    state.date = utcDate();
+    state.rounds = makePuzzle(practice ? state.date + ':practice:' + hash(state.date + ':practice:' + Date.now()) : state.date);
+    state.index = 0;
+    state.deadline = null;
+    show('game');
+    renderRound();
+  }
+
+  function renderRound() {
+    const q = current();
+    if (!q) {
+      finish();
+      return;
+    }
+    $('round-category').textContent = q.category;
+    $('round-difficulty').textContent = q.difficulty;
+    $('round-count').innerHTML = `${String(state.index + 1).padStart(2, '0')} <b>/ 05</b>`;
+    $('round-progress').style.width = `${((state.index + 1) / 5) * 100}%`;
+    $('question-prompt').textContent = q.prompt;
+    $('target-value').textContent = fmt(q.target, q.unit);
+    $('daily-label').textContent = state.practice ? 'PRACTICE MODE' : `DAILY NO. ${String(dayNumber()).padStart(3, '0')}`;
+    if (q.result) {
+      renderShot(q);
+      return;
+    }
+    $('entry-area').classList.remove('hidden');
+    $('reveal').classList.add('hidden');
+    $('round-clock').classList.remove('hidden');
+    $('answer-input').value = '';
+    clearAnswerError();
+    window.renderGolf?.();
+    state.deadline ??= Date.now() + roundDuration;
+    persist();
+    clearInterval(roundClock);
+    updateRoundClock();
+    if (!q.result) {
+      roundClock = setInterval(updateRoundClock, 100);
+      $('answer-input').focus({ preventScroll: true });
+    }
+  }
+
+  function updateRoundClock() {
+    const remaining = Math.max(0, state.deadline - Date.now());
+    const seconds = Math.ceil(remaining / 1000);
+    const clock = $('round-clock');
+    const display = `${seconds}s`;
+    if ($('round-seconds').textContent !== display) $('round-seconds').textContent = display;
+    clock.style.setProperty('--time-remaining', remaining / roundDuration);
+    clock.classList.toggle('urgent', seconds <= 5);
+    if (remaining === 0) {
+      completeShot(current(), { name: 'No shot', score: 0, timedOut: true, label: 'Time’s up - No points' });
+    }
+  }
+
   const answerHint = 'Type your answer, then lock it in.';
   const normalizeAnswer = value => value.toLowerCase().normalize('NFD')
     .replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -80,40 +166,88 @@
   }
 
   function score(q,a){return a.value>q.target?0:Math.min(100,Math.max(0,Math.round(100*a.value/q.target)))}
-  function label(s,a,q){if(a.value>q.target)return'BUST';if(s===100)return'PERFECT HIT';if(s>=98)return'BULLSEYE';if(s>=90)return'NEAR MISS';if(s>=75)return'CLOSE CALL';if(s>=50)return'SAFE BET';return'WAY OFF'}
+  function shotLabel(q, a, points) {
+    if (a.value > q.target) return 'OB - No points';
+    if (a.value === q.target) return 'Hole in one!';
+    if (a.value / q.target >= 0.9) return 'On the green';
+    if (points >= 75) return 'Just off the green';
+    if (points >= 50) return 'Fairway finder';
+    return 'In the rough';
+  }
+
   function submit(event) {
     event.preventDefault();
     if ($('entry-area').classList.contains('hidden')) return;
+    if (Date.now() >= state.deadline) {
+      updateRoundClock();
+      return;
+    }
     const q = current();
     const input = $('answer-input');
     const raw = normalizeAnswer(input.value);
     const match = raw && matchAnswer(raw, q.answers);
     if (!match) {
       input.setAttribute('aria-invalid', 'true');
-      $('input-hint').textContent = raw ? 'No clear match. Check the spelling or try another answer.' : 'Enter an answer first.';
+      $('input-hint').textContent = input.value.trim() ? 'Wrong hole, try again' : 'Enter an answer first.';
       input.focus();
       return;
     }
     const { answer: a, corrected } = match;
-    $('result-pick-label').textContent = corrected ? 'AUTOCORRECTED PICK' : 'YOUR PICK';
-    const s = score(q, a);
-    state.rounds[state.index].result={name:a.name,value:a.value,score:s,bust:a.value>q.target,label:label(s,a,q),source:q.source,url:q.url};$('entry-area').classList.add('hidden');$('reveal').classList.remove('hidden');$('result-name').textContent=a.name;$('score-chip').textContent=s;$('score-chip').className='score-chip '+(a.value>q.target?'bust':s<75?'close':'');
-    const reveal = $('reveal');
-    reveal.dataset.outcome = a.value > q.target ? 'bust' : s >= 90 ? 'near' : 'under';
-    // Leave the final 15% of the meter for guesses beyond the target.
-    const targetPosition = 85;
-    const guessPosition = Math.max(0, Math.min(100, targetPosition * a.value / q.target));
-    reveal.style.setProperty('--target-position', `${targetPosition}%`);
-    reveal.style.setProperty('--guess-position', `${guessPosition}%`);
-    reveal.style.setProperty('--guess-ratio', guessPosition / 100);$('actual-value').textContent=metric(a.value,q.unit);$('difference').textContent=metric(Math.abs(q.target-a.value),q.unit);$('result-label').textContent=label(s,a,q);$('result-label').title=`Source: ${q.source}`;let note=document.getElementById('source-note');if(!note){note=document.createElement('p');note.id='source-note';note.className='source-note';document.querySelector('.result-details').after(note)}note.innerHTML=`Source: <a href="${q.url}" target="_blank" rel="noreferrer">${escapeHtml(q.source)}</a>`;note.style.cssText='font-size:12px;color:var(--muted);margin:12px 0 0';$('next-btn').innerHTML=state.index===4?'See your score <span>↗</span>':'Next round <span>↗</span>';if(!state.practice)persist()}
-  function advance(){state.index++;if(state.index>=5){finish();return}if(!state.practice)persist();renderRound()}
+    const points = score(q, a);
+    completeShot(q, {
+      name: a.name, value: a.value, score: points, bust: a.value > q.target,
+      corrected, label: shotLabel(q, a, points), source: q.source, url: q.url
+    });
+  }
+
+  function completeShot(q, result) {
+    q.result = result;
+    state.deadline = null;
+    persist();
+    renderShot(q, true);
+    if (!$('game').classList.contains('hidden')) $('next-btn').focus({ preventScroll: true });
+  }
+
+  function renderShot(q, animate = false) {
+    clearInterval(roundClock);
+    const result = q.result;
+    const { name, value, score: points, bust, timedOut, corrected } = result;
+    $('round-clock').classList.add('hidden');
+    $('entry-area').classList.add('hidden');
+    $('reveal').classList.remove('hidden');
+    $('reveal').dataset.outcome = bust ? 'bust' : timedOut ? 'timeout' : value === q.target ? 'exact' : 'under';
+    $('result-pick-label').textContent = corrected ? 'AUTOCORRECTED PICK' : timedOut ? 'ROUND RESULT' : 'YOUR PICK';
+    $('result-name').textContent = name;
+    $('score-chip').textContent = points;
+    $('score-chip').className = 'score-chip ' + (bust || timedOut ? 'bust' : points < 75 ? 'close' : '');
+    $('actual-value').textContent = timedOut ? '—' : metric(value, q.unit);
+    $('difference').textContent = timedOut ? '—' : metric(Math.abs(q.target - value), q.unit);
+    $('result-label').textContent = result.label;
+    const source = $('source-note');
+    source.classList.toggle('hidden', timedOut === true);
+    $('source-link').href = q.url;
+    $('source-link').textContent = q.source;
+    $('next-btn').innerHTML = state.index === 4 ? 'See your score <span>↗</span>' : 'Next round <span>↗</span>';
+    window.renderGolf?.(result, q.target, animate);
+  }
+
+  function advance() {
+    if (!current()?.result || $('reveal').classList.contains('hidden')) return;
+    state.index++;
+    state.deadline = null;
+    if (state.index >= 5) {
+      finish();
+      return;
+    }
+    renderRound();
+  }
   function titleFor(n){return n>=475?'INSANE':n>=450?'SHARPSHOOTER':n>=400?'DANGEROUS':n>=350?'SOLID':n>=250?'MID':'ROUGH DAY'}
-  function finish(){const score=state.rounds.reduce((n,q)=>n+(q.result?.score||0),0),result={rounds:state.rounds,index:5,done:true,score,date:utcDate()};if(!state.practice){const all=read();all.days=all.days||{};all.days[utcDate()]=result;all.history=all.history||[];if(!all.history.some(x=>x.date===utcDate()))all.history.push({date:utcDate(),score});all.history=all.history.slice(-14);const prior=all.stats||{games:0,best:0,streak:0,longest:0,lastDate:null};const yesterday=new Date(Date.now()-86400000).toISOString().slice(0,10);prior.games++;prior.best=Math.max(prior.best,score);prior.streak=prior.lastDate===yesterday?prior.streak+1:prior.lastDate===utcDate()?prior.streak:1;prior.longest=Math.max(prior.longest,prior.streak);prior.lastDate=utcDate();all.stats=prior;write(all)}renderResults(result)}
-  function renderResults(result){const rounds=result.rounds||[],score=result.score??rounds.reduce((a,q)=>a+(q.result?.score||0),0),busts=rounds.filter(q=>q.result?.bust).length,perfect=rounds.filter(q=>q.result?.score===100).length;$('final-title').textContent=titleFor(score)+'.';$('total-score').textContent=String(score).padStart(3,'0');$('results-sub').textContent=state.practice?'Practice round complete. Daily stats stay untouched.':`Daily no. ${String(dayNumber()).padStart(3,'0')} · ${new Intl.DateTimeFormat('en',{weekday:'long',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(utcDate()+'T00:00:00Z'))} UTC`;$('score-list').innerHTML=rounds.map((q,i)=>`<div class="score-row"><span class="score-index">0${i+1}</span><div><div class="score-name">${escapeHtml(q.result?.name||'—')}</div><div class="score-category">${q.category} · ${q.result?.label||''}</div></div><span class="score-points">${q.result?.score??0}</span><span class="score-symbol ${q.result?.bust?'bust':''}">${q.result?.bust?'×':q.result?.score===100?'★':'●'}</span></div>`).join('');const best=rounds.reduce((a,q)=>!a||q.result.score>a.result.score?q:a,null);$('result-metrics').innerHTML=`<div class="metric"><span>BUSTS</span><b>${busts}</b></div><div class="metric"><span>PERFECTS</span><b>${perfect}</b></div><div class="metric"><span>BEST ROUND</span><b>${best?.category||'—'}</b></div>`;$('practice-btn').textContent=state.practice?'Try another practice':'Practice mode';$('share-btn').onclick=()=>share(rounds,score,busts);tick();show('results')}
+  function finish(){const score=state.rounds.reduce((n,q)=>n+(q.result?.score||0),0),result={rounds:state.rounds,index:5,done:true,score,date:state.date};if(!state.practice){const all=read();all.days=all.days||{};if(all.days[state.date]?.done){renderResults(all.days[state.date]);return}all.days[state.date]=result;all.history=all.history||[];if(!all.history.some(x=>x.date===state.date))all.history.push({date:state.date,score});all.history=all.history.slice(-14);const prior=all.stats||{games:0,best:0,streak:0,longest:0,lastDate:null};const yesterday=new Date(Date.parse(state.date+'T00:00:00Z')-86400000).toISOString().slice(0,10);prior.games++;prior.best=Math.max(prior.best,score);prior.streak=prior.lastDate===yesterday?prior.streak+1:prior.lastDate===state.date?prior.streak:1;prior.longest=Math.max(prior.longest,prior.streak);prior.lastDate=state.date;all.stats=prior;write(all)}renderResults(result)}
+  function renderResults(result){const rounds=result.rounds||[],score=result.score??rounds.reduce((a,q)=>a+(q.result?.score||0),0),busts=rounds.filter(q=>q.result?.bust).length,perfect=rounds.filter(q=>q.result?.score===100).length;$('final-title').textContent=titleFor(score)+'.';$('total-score').textContent=String(score).padStart(3,'0');$('results-sub').textContent=state.practice?'Practice round complete. Daily stats stay untouched.':`Daily no. ${String(dayNumber()).padStart(3,'0')} · ${new Intl.DateTimeFormat('en',{weekday:'long',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(utcDate()+'T00:00:00Z'))} UTC`;$('score-list').innerHTML=rounds.map((q,i)=>`<div class="score-row"><span class="score-index">0${i+1}</span><div><div class="score-name">${escapeHtml(q.result?.name||'—')}</div><div class="score-category">${q.category} · ${q.result?.label||''}</div></div><span class="score-points">${q.result?.score??0}</span><span class="score-symbol ${q.result?.bust?'bust':''}">${q.result?.timedOut?'–':q.result?.bust?'×':q.result?.score===100?'★':'●'}</span></div>`).join('');const best=rounds.reduce((a,q)=>!a||q.result.score>a.result.score?q:a,null);$('result-metrics').innerHTML=`<div class="metric"><span>BUSTS</span><b>${busts}</b></div><div class="metric"><span>PERFECTS</span><b>${perfect}</b></div><div class="metric"><span>BEST ROUND</span><b>${best?.category||'—'}</b></div>`;$('practice-btn').textContent=state.practice?'Try another practice':'Practice mode';$('share-btn').onclick=()=>share(rounds,score,busts);tick();show('results')}
   const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  async function share(rounds,score,busts){const text=`NEAR MISS #${String(dayNumber()).padStart(3,'0')} 🎯\n\n${rounds.map(q=>q.result?.bust?'🟥':q.result?.score===100?'🎯':q.result?.score>=90?'🟩':q.result?.score>=75?'🟨':q.result?.score>=50?'🟧':'⬜').join('  ')}\n\n${score}/500 · ${busts} BUST${busts===1?'':'S'}\n${window.location.host}`;try{if(navigator.share)await navigator.share({title:'My NEAR MISS score',text});else{await navigator.clipboard.writeText(text);toast('Score copied. Go compare.')}}catch(e){if(e.name!=='AbortError')toast('Could not share right now.')}}
+  async function share(rounds,score,busts){const text=`NEAR MISS #${String(dayNumber()).padStart(3,'0')} 🎯\n\n${rounds.map(q=>q.result?.timedOut?'⌛':q.result?.bust?'🟥':q.result?.score===100?'🎯':q.result?.score>=90?'🟩':q.result?.score>=75?'🟨':q.result?.score>=50?'🟧':'⬜').join('  ')}\n\n${score}/500 · ${busts} BUST${busts===1?'':'S'}\n${window.location.host}`;try{if(navigator.share)await navigator.share({title:'My NEAR MISS score',text});else{await navigator.clipboard.writeText(text);toast('Score copied. Go compare.')}}catch(e){if(e.name!=='AbortError')toast('Could not share right now.')}}
   function tick(){const update=()=>{const n=new Date(),next=Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()+1),d=Math.max(0,next-n.getTime()),h=Math.floor(d/3600000),m=Math.floor(d%3600000/60000),s=Math.floor(d%60000/1000);$('countdown').textContent=[h,m,s].map(x=>String(x).padStart(2,'0')).join(':')};update();clearInterval(window.countdownInterval);window.countdownInterval=setInterval(update,1000)}
-  function openStats(){const all=read(),s=all.stats||{games:0,best:0,streak:0,longest:0},hist=all.history||[];$('stats-grid').innerHTML=[[s.games,'GAMES'],[s.best,'BEST SCORE'],[s.streak,'CURRENT STREAK'],[s.longest,'BEST STREAK'],[hist.length?Math.round(hist.reduce((a,x)=>a+x.score,0)/hist.length):0,'AVG SCORE'],[hist.reduce((a,x)=>a+x.score,0),'TOTAL POINTS']].map(([v,l])=>`<div class="stat-cell"><label>${l}</label><strong>${String(v).padStart(2,'0')}</strong></div>`).join('');$('chart').innerHTML=Array.from({length:7},(_,i)=>hist[hist.length-7+i]).map(x=>`<div class="chart-col"><div class="chart-bar" style="height:${Math.max(3,(x?.score||0)/5)}%" title="${x?.score||0}"></div><span>${x?.date?.slice(5)||'·'}</span></div>`).join('');show('stats')}
+  function openStats(){if(!$('stats').classList.contains('hidden'))return;statsReturn=views.find(view=>!$(view).classList.contains('hidden'));const all=read(),s=all.stats||{games:0,best:0,streak:0,longest:0},hist=all.history||[];$('stats-grid').innerHTML=[[s.games,'GAMES'],[s.best,'BEST SCORE'],[s.streak,'CURRENT STREAK'],[s.longest,'BEST STREAK'],[hist.length?Math.round(hist.reduce((a,x)=>a+x.score,0)/hist.length):0,'AVG SCORE'],[hist.reduce((a,x)=>a+x.score,0),'TOTAL POINTS']].map(([v,l])=>`<div class="stat-cell"><label>${l}</label><strong>${String(v).padStart(2,'0')}</strong></div>`).join('');$('chart').innerHTML=Array.from({length:7},(_,i)=>hist[hist.length-7+i]).map(x=>`<div class="chart-col"><div class="chart-bar" style="height:${Math.max(3,(x?.score||0)/5)}%" title="${x?.score||0}"></div><span>${x?.date?.slice(5)||'·'}</span></div>`).join('');show('stats')}
   function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
   $('start-btn').onclick=()=>resume()||start(false);$('answer-input').addEventListener('input', clearAnswerError);
   $('clear-input').onclick = () => {
@@ -122,5 +256,5 @@
     $('answer-input').focus();
   };
   $('entry-area').addEventListener('submit', submit);
-  $('next-btn').onclick=advance;$('practice-btn').onclick=()=>start(true);$('stats-open').onclick=openStats;$('stats-close').onclick=()=>show('intro');$('help-open').onclick=()=>$('help-dialog').showModal();$('about-open').onclick=()=>$('about-dialog').showModal();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('daily-label').textContent=`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`;$('footer-today').textContent=new Intl.DateTimeFormat('en',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date());if(!resume()){$('start-btn').textContent='Play today';}
+  $('next-btn').onclick=advance;$('practice-btn').onclick=()=>start(true);$('stats-open').onclick=openStats;$('stats-close').onclick=()=>show(statsReturn);$('help-open').onclick=()=>$('help-dialog').showModal();$('about-open').onclick=()=>$('about-dialog').showModal();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('daily-label').textContent=`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`;$('footer-today').textContent=new Intl.DateTimeFormat('en',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date());if(!resume()){$('start-btn').textContent='Play today';}
 })();
