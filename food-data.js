@@ -1,0 +1,47 @@
+// FDA public nutrition posters. Columns: food, serving, grams, calories, potassium (mg), fibre (g), sugar (g), protein (g).
+window.nearMissFoodData = {
+  fruit: [
+    ["Apple","1 large",242,130,260,5,25,1],
+    ["Avocado","1/5 medium",30,50,140,1,0,1],
+    ["Banana","1 medium",126,110,450,3,19,1],
+    ["Cantaloupe","1/4 medium",134,50,240,1,11,1],
+    ["Grapefruit","1/2 medium",154,60,160,2,11,1],
+    ["Grapes","3/4 cup",126,90,240,1,20,0],
+    ["Honeydew Melon","1/10 medium melon",134,50,210,1,11,1],
+    ["Kiwifruit","2 medium",148,90,450,4,13,1],
+    ["Lemon","1 medium",58,15,75,2,2,0],
+    ["Lime","1 medium",67,20,75,2,0,0],
+    ["Nectarine","1 medium",140,60,250,2,11,1],
+    ["Orange","1 medium",154,80,250,3,14,1],
+    ["Peach","1 medium",147,60,230,2,13,1],
+    ["Pear","1 medium",166,100,190,6,16,1],
+    ["Pineapple","2 slices, 3\" diameter, 3/4\" thick",112,50,120,1,10,1],
+    ["Plums","2 medium",151,70,230,2,16,1],
+    ["Strawberries","8 medium",147,50,170,2,8,1],
+    ["Sweet Cherries","21 cherries; 1 cup",140,100,350,1,16,1],
+    ["Tangerine","1 medium",109,50,160,2,9,1],
+    ["Watermelon","1/18 medium melon; 2 cups diced pieces",280,80,270,1,20,1]
+  ],
+  veg: [
+    ["Asparagus","5 spears",93,20,230,2,2,2],
+    ["Bell Pepper","1 medium",148,25,220,2,4,1],
+    ["Broccoli","1 medium stalk",148,45,460,3,2,4],
+    ["Carrot","1 carrot, 7\" long, 1 1/4\" diameter",78,30,250,2,5,1],
+    ["Cauliflower","1/6 medium head",99,25,270,2,2,2],
+    ["Celery","2 medium stalks",110,15,260,2,2,0],
+    ["Cucumber","1/3 medium",99,10,140,1,1,1],
+    ["Green (Snap) Beans","3/4 cup cut",83,20,200,3,2,1],
+    ["Green Cabbage","1/12 medium head",84,25,190,2,3,1],
+    ["Green Onion","1/4 cup chopped",25,10,70,1,1,0],
+    ["Iceberg Lettuce","1/6 medium head",89,10,125,1,2,1],
+    ["Leaf Lettuce","1 1/2 cups shredded",85,15,170,1,1,1],
+    ["Mushrooms","5 medium",84,20,300,1,0,3],
+    ["Onion","1 medium",148,45,190,3,9,1],
+    ["Potato","1 medium",148,110,620,2,1,3],
+    ["Radishes","7 radishes",85,10,190,1,2,0],
+    ["Summer Squash","1/2 medium",98,20,260,2,2,1],
+    ["Sweet Corn kernels from","1 medium ear",90,90,250,2,5,4],
+    ["Sweet Potato","1 medium, 5\" long, 2\" diameter",130,100,440,4,7,2],
+    ["Tomato","1 medium",148,25,340,1,3,1]
+  ]
+};
