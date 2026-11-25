@@ -138,3 +138,82 @@ body::before {
   from { background-position: 0% 0, 0 0, 0 0, 0 0; }
   to { background-position: 100% 0, 0 0, 0 0, 0 0; }
 }
+
+
+/* The marker and fill share the same endpoint and timing. */
+.reveal {
+  --guess-position: 0%;
+  --target-position: 85%;
+  --guess-duration: 850ms;
+  --guess-easing: cubic-bezier(.2, .75, .25, 1);
+}
+
+.reveal .bar-target {
+  left: var(--target-position);
+}
+
+.bar-marker {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: var(--guess-position);
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--reveal-color);
+  box-shadow: 0 0 0 1px var(--reveal-color);
+  transform: translate(-50%, -50%);
+}
+
+.bar-gap {
+  position: absolute;
+  inset-block: 3px;
+  left: min(var(--guess-position), var(--target-position));
+  width: max(
+    calc(var(--target-position) - var(--guess-position)),
+    calc(var(--guess-position) - var(--target-position))
+  );
+  border-radius: 6px;
+  background: repeating-linear-gradient(
+    135deg, var(--yellow) 0 2px, transparent 2px 6px
+  );
+}
+
+.reveal[data-outcome="bust"] .bar-gap {
+  background: repeating-linear-gradient(
+    135deg, var(--surface) 0 2px, transparent 2px 6px
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal:not(.hidden) .bar-fill,
+  .reveal:not(.hidden) .bar-marker {
+    animation-duration: var(--guess-duration);
+    animation-timing-function: var(--guess-easing);
+  }
+
+  .reveal:not(.hidden) .bar-marker {
+    animation-name: guess-marker;
+    animation-fill-mode: both;
+  }
+
+  .reveal:not(.hidden) .bar-gap {
+    animation: guess-gap 300ms var(--guess-duration) ease-out both;
+  }
+
+  .reveal[data-outcome="near"]:not(.hidden) .score-chip,
+  .reveal[data-outcome="bust"]:not(.hidden) .bar-target {
+    animation-delay: var(--guess-duration);
+  }
+}
+
+@keyframes guess-marker {
+  from { left: 0; }
+  to { left: var(--guess-position); }
+}
+
+@keyframes guess-gap {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
