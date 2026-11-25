@@ -7,7 +7,9 @@
   const flag = { x: 200, y: 79 };
   const water = 216;
   const swingTime = 370;
-  const flightTime = 1000;
+  const flightTime = 1250;
+  const courseWidth = 256;
+  const courseHeight = 96;
   const finishTime = 420;
   let frame;
 
@@ -118,22 +120,24 @@
   }
 
   function draw(elapsed = 0, result, ratio = 0) {
-    landscape();
     const ready = !result || result.timedOut;
     const flying = !ready && elapsed >= swingTime;
+    const travel = flying ? Math.min(1, (elapsed - swingTime) / flightTime) : 0;
+    const beyond = result?.bust;
+    const landing = beyond ? Math.min(249, 222 + (ratio - 1) * 28)
+      : tee.x + (flag.x - tee.x) * Math.max(0, ratio);
+    const x = tee.x + (landing - tee.x) * travel;
+    const cameraX = Math.min(courseWidth - canvas.width, Math.max(0, x - canvas.width * 0.43));
+    ctx.setTransform(1, 0, 0, 1, -Math.round(cameraX), canvas.height - courseHeight);
+    landscape();
     golfer(flying ? 2 : elapsed > 110 && !ready ? 1 : 0);
     if (!flying) {
       ball(tee.x, tee.y - 2);
       return;
     }
 
-    const travel = Math.min(1, (elapsed - swingTime) / flightTime);
-    const beyond = result.bust;
     const exact = ratio === 1;
-    const landing = beyond ? Math.min(249, 222 + (ratio - 1) * 28)
-      : tee.x + (flag.x - tee.x) * Math.max(0, ratio);
     const landingY = beyond ? 82 : flag.y;
-    const x = tee.x + (landing - tee.x) * travel;
     const arc = Math.sin(Math.PI * travel) * (25 + 21 * Math.min(1, ratio));
     const y = tee.y - 2 + (landingY - tee.y + 2) * travel - arc;
     const settled = Math.min(1, Math.max(0, (elapsed - swingTime - flightTime) / finishTime));

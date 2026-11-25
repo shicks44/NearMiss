@@ -5,7 +5,7 @@
     {category:'MOUNTAINS',difficulty:'MEDIUM',prompt:'Name a famous mountain with a summit elevation as close as possible without going over.',unit:'metres above sea level',targets:[6000,7000,8000,8500,8800],source:'Peakbagger / authoritative peak references',url:'https://www.peakbagger.com/',items:[['Mount Kilimanjaro',5895],['Denali',6190],['Aconcagua',6961],['Mount Elbrus',5642],['Mount Vinson',4892],['Puncak Jaya',4884],['Mount Logan',5959],['Cho Oyu',8188],['Manaslu',8163],['Dhaulagiri I',8167],['Makalu',8485],['Lhotse',8516],['Kangchenjunga',8586],['K2',8611],['Mount Everest',8849]]},
     {category:'MOVIES',difficulty:'EASY',prompt:'Name a movie with a theatrical runtime as close as possible without going over.',unit:'minutes',targets:[100,120,140,160,180,200],source:'AFI Catalog / studio theatrical runtimes',url:'https://catalog.afi.com/',items:[['Toy Story',81],['The Lion King (1994)',88],['Jaws',124],['The Matrix',136],['Titanic',194],['The Dark Knight',152],['Interstellar',169],['The Godfather',175],['Avatar',162],['Oppenheimer',180],['The Lord of the Rings: The Fellowship of the Ring',178],['Jurassic Park',127],['Finding Nemo',100],['Inception',148],['The Avengers',143],['Spider-Man: Into the Spider-Verse',117]]},
     {category:'COUNTRIES',difficulty:'HARD',prompt:'Name a country with a land area as close as possible without going over.',unit:'thousand km²',targets:[100,300,500,1000,3000,8000],source:'CIA World Factbook (land area snapshots)',url:'https://www.cia.gov/the-world-factbook/field/area/',items:[['Iceland',100],['Greece',131],['Nepal',143],['New Zealand',263],['Italy',294],['Japan',365],['Germany',349],['Sweden',410],['Spain',499],['Thailand',511],['Egypt',995],['South Africa',1214],['Mexico',1944],['Saudi Arabia',2149],['India',2973],['Australia',7692],['Brazil',8358],['United States',9147],['China',9388],['Canada',9093]]},
-    {category:'ANIMALS',difficulty:'MEDIUM',prompt:'Name an animal with a typical lifespan as close as possible without going over.',unit:'years',targets:[10,20,40,60,80,100],source:'San Diego Zoo Animal Fact Sheets (typical ranges)',url:'https://animals.sandiegozoo.org/',items:[['House mouse',2],['Domestic cat',15],['African grey parrot',50],['African elephant',65],['Blue whale',90],['Giant tortoise',100],['Red fox',5],['Bald eagle',20],['Horse',30],['Chimpanzee',40],['Orca',50],['Bowhead whale',200]]}
+    {category:'ANIMALS',difficulty:'MEDIUM',prompt:'Name an animal with a typical lifespan as close as possible without going over.',unit:'years',targets:[10,20,40,60,80,100],source:'San Diego Zoo Animal Fact Sheets (typical ranges)',url:'https://animals.sandiegozoo.org/',items:[['House mouse',2,'mouse','mice','house mice'],['Domestic cat',15,'house cat','housecat','cat','cats','house cats','domestic cats'],['African grey parrot',50,'African gray parrot','grey parrot','gray parrot'],['African elephant',65,'elephant','elephants','African elephants'],['Blue whale',90,'blue whales'],['Giant tortoise',100,'giant tortoises'],['Red fox',5,'fox','foxes','red foxes'],['Bald eagle',20,'bald eagles'],['Horse',30,'horses','domestic horse'],['Chimpanzee',40,'chimp','chimps','chimpanzees'],['Orca',50,'orcas','killer whale','killer whales'],['Bowhead whale',200,'bowhead whales']]}
   ];
   const $=id=>document.getElementById(id), views=['intro','game','results','stats'];
   const state={rounds:[],index:0,practice:false,date:null,deadline:null};
@@ -30,7 +30,19 @@
     if (!daily) return false;
     state.practice = false;
     state.date = date;
-    state.rounds = daily.rounds || [];
+    state.rounds = (daily.rounds || []).map(round => {
+      const deck = DATA.find(item => item.category === round.category);
+      if (!deck || !round.answers) return round;
+      // Older saves copied the answer bank before the current aliases were added.
+      const aliasesByName = new Map(deck.items.map(([name, , ...aliases]) => [name, aliases]));
+      return {
+        ...round,
+        answers: round.answers.map(answer => ({
+          ...answer,
+          aliases: [...new Set([...(answer.aliases ?? []), ...(aliasesByName.get(answer.name) ?? [])])]
+        }))
+      };
+    });
     state.index = daily.index || 0;
     state.deadline = daily.deadline ?? null;
     if (daily.done) {
