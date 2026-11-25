@@ -108,3 +108,33 @@
   from { opacity: 0; transform: translateY(7px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Keep the target grid behind every view, including a resumed daily round. */
+body {
+  isolation: isolate;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(105deg, transparent 36%, color-mix(in srgb, var(--green) 21%, transparent) 50%, transparent 64%) 0 0 / 230% 100% no-repeat,
+    radial-gradient(ellipse at 72% 30%, color-mix(in srgb, var(--green) 16%, transparent), transparent 62%),
+    repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 42px),
+    repeating-linear-gradient(0deg, var(--line) 0 1px, transparent 1px 42px);
+  mask-image: radial-gradient(ellipse at 68% 37%, black, transparent 86%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body::before {
+    animation: grid-sweep 7s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes grid-sweep {
+  from { background-position: 0% 0, 0 0, 0 0, 0 0; }
+  to { background-position: 100% 0, 0 0, 0 0, 0 0; }
+}
