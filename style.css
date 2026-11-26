@@ -526,7 +526,7 @@ footer { min-height: 32px; margin: 0; }
   .intro .howline { margin-top: 8px; }
 }
 
-@media (max-height: 520px) {
+@media (max-height: 560px) {
   .game { padding-block: 9px; }
   .game .question-prompt { font-size: 21px; margin-bottom: 7px; }
   .game .target-line { padding-block: 5px; }
@@ -635,3 +635,45 @@ footer { min-height: 32px; margin: 0; }
 }
 .answer-reveal span { color: var(--muted); font-size: 12px; }
 .answer-reveal strong { font-size: 15px; overflow-wrap: anywhere; }
+
+.baseline-hint {
+  margin: -3px 0 9px;
+  padding-left: 9px;
+  border-left: 2px solid var(--green);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+@media (max-width: 420px) and (max-height: 650px), (max-height: 560px) {
+  .game .entry-area {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 7px;
+    align-items: center;
+  }
+  .game .entry-area label { grid-column: 1 / -1; margin: 0; }
+  .game .entry-area .input-hint { grid-column: 1 / -1; grid-row: 3; margin: 0; }
+  .game .entry-area .next-button {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+    min-height: 46px;
+    padding: 5px 8px;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 421px) and (min-height: 741px) and (max-height: 800px) {
+  .game { padding-block: 20px; }
+}
+
+.weekly-playtest #share-btn,
+.weekly-playtest #practice-btn,
+.weekly-playtest .countdown,
+.weekly-playtest #stats-open,
+.weekly-playtest #clubhouse-open,
+.weekly-playtest #course-caption { display: none; }
+#weekly-return { display: inline-flex; align-items: center; color: var(--text); text-decoration: none; }
+
+#editor-local-link { color: var(--muted); text-underline-offset: 3px; }

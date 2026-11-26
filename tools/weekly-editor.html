@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weekly Editor · NearMiss</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/light.css">
+  <link rel="stylesheet" href="/tools/weekly-editor.css">
+  <script defer src="/questions.js"></script>
+  <script defer src="/world-data.js"></script>
+  <script defer src="/food-data.js"></script>
+  <script defer src="/fact-pack.js"></script>
+  <script defer src="/sports-data.js"></script>
+  <script defer src="/rotation.js"></script>
+  <script defer src="/trivia-bank.js"></script>
+  <script defer src="/weekly-core.js"></script>
+  <script defer src="/weekly-schedule.js"></script>
+  <script defer src="/tools/weekly-editor.js"></script>
+</head>
+<body class="weekly-editor">
+  <header class="editor-header"><a href="/">NearMiss</a></header>
+  <main class="editor-shell">
+    <h1>Weekly Editor</h1>
+    <p id="editor-intro">Draft five holes per day, playtest them, and share the draft with a reviewer.</p>
+    <p id="editor-unavailable" class="hidden">Open the Weekly Editor on localhost to work on drafts.</p>
+    <div id="editor" class="hidden">
+      <section class="editor-toolbar" aria-label="Manage week">
+        <label>Week starting Monday <input id="week-monday" type="date"></label>
+        <button type="button" id="open-week">Open week</button>
+        <label class="editor-file">Import draft <input id="import-week" type="file" accept=".json,application/json"></label>
+        <button type="button" id="export-draft">Export draft</button>
+        <button type="button" id="export-reviewed">Export reviewed week</button>
+      </section>
+      <p class="editor-status" id="editor-status" role="status"></p>
+      <nav id="editor-days" class="editor-days" aria-label="Days in the selected week"></nav>
+      <section class="editor-day" aria-labelledby="editor-day-title">
+        <div class="editor-day-header">
+          <div><h2 id="editor-day-title"></h2><p id="editor-day-progress"></p></div>
+          <button class="primary-button" type="button" id="playtest-day">Playtest day</button>
+        </div>
+        <div id="editor-holes" class="editor-holes"></div>
+        <div class="editor-review">
+          <label class="editor-review-note">Review notes <textarea id="review-note" rows="2" maxlength="600"></textarea></label>
+          <label>Reviewer name <input id="reviewer-name" maxlength="80" autocomplete="off"></label>
+          <button type="button" id="approve-day">Approve day</button>
+          <button type="button" id="clear-approval">Reset approval</button>
+        </div>
+      </section>
+    </div>
+    <template id="editor-hole-template">
+      <fieldset class="editor-hole">
+        <legend></legend>
+        <div class="editor-fields">
+          <label>Question type
+            <select data-field="numeric"><option value="true">Number guess</option><option value="false">Name a match</option></select>
+          </label>
+          <label>Topic <input data-field="category" maxlength="40" placeholder="Animals"></label>
+          <label>Unit <input data-field="unit" maxlength="45" placeholder="pounds"></label>
+          <label>Exact answer or target <input type="number" inputmode="decimal" step="any" data-field="target"></label>
+          <label class="field-wide">Question <textarea data-field="prompt" maxlength="220" rows="2"></textarea></label>
+          <label class="field-wide">For scale clue <textarea data-field="hint" maxlength="165" rows="2"></textarea></label>
+          <label>Source name <input data-field="source" maxlength="140"></label>
+          <label>Source link <input type="url" data-field="url" placeholder="https://"><a class="source-preview hidden" target="_blank" rel="noopener noreferrer">Open source</a></label>
+          <label class="field-wide answer-list hidden">Accepted names
+            <textarea data-field="answers" rows="4" placeholder="Name | value | optional alias | another alias"></textarea>
+            <small>One per line. Exactly one value should equal the target.</small>
+          </label>
+        </div>
+      </fieldset>
+    </template>
+  </main>
+</body>
+</html>

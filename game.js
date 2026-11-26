@@ -1,22 +1,11 @@
 (() => {
-  const { decks: extraDecks, estimates } = window.nearMissQuestions;
-  const DATA = [
-    {category:'ELEMENTS',difficulty:'EASY',prompt:'Name a chemical element with an atomic number as close as possible without going over.',unit:'atomic number',source:'IUPAC Periodic Table',url:'https://iupac.org/what-we-do/periodic-table-of-elements/',items:[['Hydrogen',1,'H'],['Helium',2,'He'],['Carbon',6,'C'],['Oxygen',8,'O'],['Neon',10,'Ne'],['Sodium',11,'Na'],['Silicon',14,'Si'],['Sulfur',16,'S'],['Argon',18,'Ar'],['Calcium',20,'Ca'],['Iron',26,'Fe'],['Copper',29,'Cu'],['Zinc',30,'Zn'],['Bromine',35,'Br'],['Krypton',36,'Kr'],['Silver',47,'Ag'],['Tin',50,'Sn'],['Iodine',53,'I'],['Xenon',54,'Xe'],['Gold',79,'Au'],['Mercury',80,'Hg'],['Lead',82,'Pb'],['Uranium',92,'U'],['Plutonium',94,'Pu'],['Oganesson',118,'Og']]},
-    {category:'PLANETS',difficulty:'MEDIUM',prompt:'Name a planet with an average diameter as close as possible without going over.',unit:'km across',source:'NASA Solar System Exploration',url:'https://science.nasa.gov/solar-system/planets/',items:[['Mercury',4879],['Mars',6779],['Venus',12104],['Earth',12742],['Neptune',49244],['Uranus',50724],['Saturn',116460],['Jupiter',139820]]},
-    {category:'MOUNTAINS',difficulty:'MEDIUM',prompt:'Name a famous mountain with a summit elevation as close as possible without going over.',unit:'metres above sea level',source:'Peakbagger / authoritative peak references',url:'https://www.peakbagger.com/',items:[['Mount Kilimanjaro',5895],['Denali',6190],['Aconcagua',6961],['Mount Elbrus',5642],['Mount Vinson',4892],['Puncak Jaya',4884],['Mount Logan',5959],['Cho Oyu',8188],['Manaslu',8163],['Dhaulagiri I',8167],['Makalu',8485],['Lhotse',8516],['Kangchenjunga',8586],['K2',8611],['Mount Everest',8849]]},
-    {category:'MOVIES',difficulty:'EASY',prompt:'Name a movie with a theatrical runtime as close as possible without going over.',unit:'minutes',source:'AFI Catalog / studio theatrical runtimes',url:'https://catalog.afi.com/',items:[['Toy Story',81],['The Lion King (1994)',88,'The Lion King','Lion King'],['Jaws',124],['The Matrix',136],['Titanic',194],['The Dark Knight',152],['Interstellar',169],['The Godfather',175],['Avatar',162],['Oppenheimer',180],['The Lord of the Rings: The Fellowship of the Ring',178,'The Fellowship of the Ring','Fellowship of the Ring','LOTR Fellowship'],['Jurassic Park',127],['Finding Nemo',100],['Inception',148],['The Avengers',143],['Spider-Man: Into the Spider-Verse',117,'Into the Spider-Verse','Spiderverse','Spider-Verse']]},
-    {category:'COUNTRIES',difficulty:'HARD',prompt:'Name a country with a land area as close as possible without going over.',unit:'thousand km²',source:'CIA World Factbook (land area snapshots)',url:'https://www.cia.gov/the-world-factbook/field/area/',items:[['Iceland',100],['Greece',131],['Nepal',143],['New Zealand',263],['Italy',294],['Japan',365],['Germany',349],['Sweden',410],['Spain',499],['Thailand',511],['Egypt',995],['South Africa',1214],['Mexico',1944],['Saudi Arabia',2149],['India',2973],['Australia',7692],['Brazil',8358],['United States',9147],['China',9388],['Canada',9093]]},
-    {category:'ANIMALS',difficulty:'MEDIUM',prompt:'Name an animal with a typical lifespan as close as possible without going over.',unit:'years',source:'San Diego Zoo Animal Fact Sheets (typical ranges)',url:'https://animals.sandiegozoo.org/',items:[['House mouse',2,'mouse','mice','house mice'],['Domestic cat',15,'house cat','housecat','cat','cats','house cats','domestic cats'],['African grey parrot',50,'African gray parrot','grey parrot','gray parrot'],['African elephant',65,'elephant','elephants','African elephants'],['Blue whale',90,'blue whales'],['Giant tortoise',100,'giant tortoises'],['Red fox',5,'fox','foxes','red foxes'],['Bald eagle',20,'bald eagles'],['Horse',30,'horses','domestic horse'],['Chimpanzee',40,'chimp','chimps','chimpanzees'],['Orca',50,'orcas','killer whale','killer whales'],['Bowhead whale',200,'bowhead whales']]},
-    ...extraDecks
-  ];
+  const DATA = window.nearMissDecks;
   const $=id=>document.getElementById(id), views=['intro','game','results','stats'];
-  const state={rounds:[],index:0,practice:false,date:null,deadline:null};
+  const state={rounds:[],index:0,practice:false,preview:false,date:null,deadline:null};
   const read=()=>{try{return JSON.parse(localStorage.getItem('nearmiss-v1')||'{}')}catch{return{}}};
   const write=o=>localStorage.setItem('nearmiss-v1',JSON.stringify(o));
   const utcDate=()=>new Date().toISOString().slice(0,10);
   const dayNumber=()=>Math.floor((Date.parse(utcDate()+'T00:00:00Z')-Date.UTC(2026,0,1))/86400000)+1;
-  const hash=s=>{let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0};
-  const rng=seed=>()=>{seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^seed>>>15,1|seed);t^=t+Math.imul(t^t>>>7,61|t);return((t^t>>>14)>>>0)/4294967296};
   function formatValue(value, unit) {
     const number = value.toLocaleString(undefined, { maximumFractionDigits: 4 });
     if (unit === 'year') return String(value);
@@ -37,7 +26,19 @@
   }
 
   const rotationStart = Date.UTC(2026, 10, 25);
-  const trivia = window.buildNearMissRotation(rng(hash('near-miss-trivia-v2')), DATA, estimates);
+  const trivia = window.nearMissTrivia;
+  const weekly = window.NearMissWeekly;
+  const authoredSchedule = window.nearMissWeeklySchedule;
+
+  function readWeeklyPreview() {
+    if (!weekly.loopback(location.hostname) || !new URLSearchParams(location.search).has('weekly-preview')) return null;
+    try {
+      const day = JSON.parse(sessionStorage.getItem(weekly.previewKey));
+      return day && weekly.validationErrors(day.questions, trivia.topicOf).length === 0 ? day : null;
+    } catch {
+      return null;
+    }
+  }
   const hydrate = round => round.bank ? { ...round, answers: trivia.answersFor(round.bank) } : round;
 
   function storedRounds(rounds) {
@@ -48,8 +49,41 @@
     });
   }
 
-  function makePuzzle(index, practice) {
-    return (trivia.schedules[Number(practice)][index] ?? []).map(round => hydrate({ ...round }));
+  function makePuzzle(index, practice, seen = new Set()) {
+    const mode = Number(practice);
+    const scheduled = trivia.schedules[mode][index];
+    if (!scheduled) return [];
+    const unseen = scheduled.filter(q => !seen.has(trivia.identity(q)));
+    const topicsUsed = new Set(unseen.map(trivia.topicOf));
+    let worldSlots = unseen.filter(trivia.isWorldFact).length;
+    const used = new Set(seen);
+    const rounds = [];
+    for (const question of scheduled) {
+      let selected = question;
+      if (used.has(trivia.identity(question))) {
+        const topic = trivia.topicOf(question);
+        const valid = candidate => !used.has(trivia.identity(candidate)) && !topicsUsed.has(trivia.topicOf(candidate))
+          && (!trivia.isWorldFact(candidate) || worldSlots < 2);
+        selected = trivia.reserves[mode].find(candidate => valid(candidate) && trivia.topicOf(candidate) === topic)
+          ?? trivia.reserves[mode].find(valid);
+        if (!selected) return [];
+        if (trivia.isWorldFact(selected)) worldSlots++;
+      }
+      used.add(trivia.identity(selected));
+      topicsUsed.add(trivia.topicOf(selected));
+      rounds.push(hydrate({ ...selected }));
+    }
+    return rounds;
+  }
+
+  function playedQuestions(saved) {
+    const oldPractice = trivia.legacy[1].slice(0, saved.triviaPracticeCursor ?? 0).flat();
+    const savedDaily = Object.values(saved.days ?? {}).flatMap(day => day.rounds ?? []);
+    return new Set([
+      ...oldPractice.map(trivia.identity),
+      ...savedDaily.map(trivia.identity),
+      ...(saved.balancedPracticeSeen ?? [])
+    ]);
   }
   function show(name){views.forEach(v=>$(v).classList.toggle('hidden',v!==name));window.scrollTo(0,0)}
   function current(){return state.rounds[state.index]}
@@ -249,15 +283,21 @@
   function start(practice = false) {
     const date = utcDate();
     const saved = read();
-    const index = practice ? saved.triviaPracticeCursor ?? 0
+    let index = practice ? saved.balancedPracticeCursor ?? 0
       : Math.max(0, Math.floor((Date.parse(date) - rotationStart) / 86400000));
-    const rounds = makePuzzle(index, practice);
+    const seen = playedQuestions(saved);
+    const authored = practice ? null : authoredSchedule[date];
+    let rounds = authored ? authored.map(q => ({ ...q })) : makePuzzle(index, practice, seen);
+    while (practice && !rounds.length && index + 1 < trivia.schedules[1].length) {
+      rounds = makePuzzle(++index, practice, seen);
+    }
     if (!rounds.length) {
       toast(practice ? 'You’ve played every available practice question.' : 'The daily question bank needs more questions.');
       return;
     }
     if (practice) {
-      saved.triviaPracticeCursor = index + 1;
+      saved.balancedPracticeCursor = index + 1;
+      saved.balancedPracticeSeen = [...(saved.balancedPracticeSeen ?? []), ...rounds.map(trivia.identity)];
       write(saved);
     }
     state.practice = practice;
@@ -280,11 +320,12 @@
     $('round-count').innerHTML = `${String(state.index + 1).padStart(2, '0')} <b>/ 05</b>`;
     $('round-progress').style.width = `${((state.index + 1) / 5) * 100}%`;
     $('question-prompt').textContent = q.prompt;
+    $('baseline-hint').textContent = `For scale: ${trivia.hintFor(q)}`;
     $('target-label').textContent = q.numeric ? 'GUESS IN' : 'THE TARGET';
     $('target-value').textContent = q.numeric ? q.unit : formatValue(q.target, q.unit);
     $('answer-input').inputMode = q.numeric ? 'decimal' : 'text';
     $('answer-input').placeholder = q.numeric ? 'Enter a number…' : 'Type your answer…';
-    $('daily-label').textContent = state.practice ? 'PRACTICE MODE' : `DAILY NO. ${String(dayNumber()).padStart(3, '0')}`;
+    $('daily-label').textContent = state.preview ? 'WEEKLY PLAYTEST' : state.practice ? 'PRACTICE MODE' : `DAILY NO. ${String(dayNumber()).padStart(3, '0')}`;
     if (q.result) {
       renderShot(q);
       return;
@@ -341,29 +382,42 @@
     return previous[b.length];
   }
 
+  function answerForms(value) {
+    const normalized = normalizeAnswer(value);
+    const withoutArticle = normalized.replace(/^the /, '');
+    return [...new Set([normalized, withoutArticle].map(name => name.replaceAll(' ', '')))];
+  }
+
   function matchAnswer(raw, answers) {
+    const guesses = answerForms(raw);
     const candidates = answers.map(answer => ({
       answer,
-      names: [answer.name, ...(answer.aliases ?? [])].map(normalizeAnswer)
+      names: [...new Set([answer.name, ...(answer.aliases ?? [])].flatMap(answerForms))]
     }));
-    const exact = candidates.filter(({ names }) => names.includes(raw));
+    const exact = candidates.filter(({ names }) => guesses.some(guess => names.includes(guess)));
     if (exact.length) {
       return exact.length === 1 ? { answer: exact[0].answer, corrected: false } : null;
     }
 
-    const maxEdits = raw.length >= 8 ? 2 : raw.length >= 4 ? 1 : 0;
-    if (!maxEdits) return null;
-    let bestDistance = maxEdits + 1;
+    let bestDistance = Infinity;
     let bestAnswer = null;
     for (const { answer, names } of candidates) {
-      const distance = Math.min(Infinity, ...names
-        .filter(name => name.length >= 4 && Math.abs(name.length - raw.length) <= maxEdits)
-        .map(name => editDistance(raw, name)));
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestAnswer = answer;
-      } else if (distance === bestDistance) {
-        bestAnswer = null;
+      for (const guess of guesses) {
+        if (guess.length < 3) continue;
+        const maxEdits = guess.length >= 12 ? 3 : guess.length >= 7 ? 2 : 1;
+        for (const name of names) {
+          if (name.length < 3 || Math.abs(name.length - guess.length) > maxEdits) continue;
+          // For two three-letter forms, accept swapped letters but avoid changing one word into another.
+          if (guess.length === 3 && name.length === 3 && [...name].sort().join('') !== [...guess].sort().join('')) continue;
+          const distance = editDistance(guess, name);
+          if (distance > maxEdits) continue;
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestAnswer = answer;
+          } else if (distance === bestDistance && bestAnswer !== answer) {
+            bestAnswer = null;
+          }
+        }
       }
     }
     return bestAnswer ? { answer: bestAnswer, corrected: true } : null;
@@ -466,6 +520,7 @@
     $('reveal').dataset.outcome = bust ? 'bust' : timedOut ? 'timeout' : value === q.target ? 'exact' : 'under';
     $('result-pick-label').textContent = corrected ? 'AUTOCORRECTED PICK' : timedOut ? 'ROUND RESULT' : 'YOUR PICK';
     $('result-name').textContent = name;
+    $('result-label').textContent = result.label;
     $('score-chip').textContent = points;
     const target = formatValue(q.target, q.unit);
     const closest = q.answers?.reduce((best, answer) => {
@@ -540,7 +595,9 @@
     renderResults(result, newUnlocks);
   }
   function renderResults(result, newUnlocks = []){updateClubhouse();const notice=$('unlock-notice');notice.classList.toggle('hidden',!newUnlocks.length);notice.textContent=newUnlocks.length?`Unlocked: ${newUnlocks.join(', ')}`:'';
-    $('daily-from-practice').classList.toggle('hidden',!state.practice);const rounds=result.rounds||[],score=result.score??rounds.reduce((a,q)=>a+(q.result?.score||0),0),busts=rounds.filter(q=>q.result?.bust).length,perfect=rounds.filter(q=>q.result?.value===q.target).length;$('final-title').textContent=titleFor(score)+'.';$('total-score').textContent=String(score).padStart(3,'0');$('results-sub').textContent=state.practice?'Practice round complete. Daily stats stay untouched.':`Daily no. ${String(dayNumber()).padStart(3,'0')} · ${new Intl.DateTimeFormat('en',{weekday:'long',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(utcDate()+'T00:00:00Z'))} UTC`;$('score-list').innerHTML=rounds.map((q,i)=>`<div class="score-row"><span class="score-index">0${i+1}</span><div><div class="score-name">${escapeHtml(q.result?.name||'—')}</div><div class="score-category">${q.category} · ${q.result?.label||''}</div></div><span class="score-points">${q.result?.score??0}</span><span class="score-symbol ${q.result?.bust?'bust':''}">${q.result?.timedOut?'–':q.result?.bust?'×':q.result?.value===q.target?'★':'●'}</span></div>`).join('');const best=rounds.reduce((a,q)=>!a||q.result.score>a.result.score?q:a,null);$('result-metrics').innerHTML=`<div class="metric"><span>BUSTS</span><b>${busts}</b></div><div class="metric"><span>HOLES IN ONE</span><b>${perfect}</b></div><div class="metric"><span>BEST ROUND</span><b>${best?.category||'—'}</b></div>`;$('practice-btn').textContent=state.practice?'Try another practice':'Practice mode';$('share-btn').onclick=()=>share(rounds,score,busts);tick();show('results')}
+    $('daily-from-practice').classList.toggle('hidden',!state.practice);
+    if (state.preview) $('daily-from-practice').textContent = 'Back to Weekly Editor';
+    const rounds=result.rounds||[],score=result.score??rounds.reduce((a,q)=>a+(q.result?.score||0),0),busts=rounds.filter(q=>q.result?.bust).length,perfect=rounds.filter(q=>q.result?.value===q.target).length;$('final-title').textContent=titleFor(score)+'.';$('total-score').textContent=String(score).padStart(3,'0');$('results-sub').textContent=state.preview?'Playtest complete. Daily scores and streaks are unchanged.':state.practice?'Practice round complete. Daily stats stay untouched.':`Daily no. ${String(dayNumber()).padStart(3,'0')} · ${new Intl.DateTimeFormat('en',{weekday:'long',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(utcDate()+'T00:00:00Z'))} UTC`;$('score-list').innerHTML=rounds.map((q,i)=>`<div class="score-row"><span class="score-index">0${i+1}</span><div><div class="score-name">${escapeHtml(q.result?.name||'—')}</div><div class="score-category">${escapeHtml(q.category)} · ${escapeHtml(q.result?.label||'')}</div></div><span class="score-points">${q.result?.score??0}</span><span class="score-symbol ${q.result?.bust?'bust':''}">${q.result?.timedOut?'–':q.result?.bust?'×':q.result?.value===q.target?'★':'●'}</span></div>`).join('');const best=rounds.reduce((a,q)=>!a||q.result.score>a.result.score?q:a,null);$('result-metrics').innerHTML=`<div class="metric"><span>BUSTS</span><b>${busts}</b></div><div class="metric"><span>HOLES IN ONE</span><b>${perfect}</b></div><div class="metric"><span>BEST ROUND</span><b>${escapeHtml(best?.category||'—')}</b></div>`;$('practice-btn').textContent=state.practice?'Try another practice':'Practice mode';$('share-btn').onclick=()=>share(rounds,score,busts);tick();show('results')}
   const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   async function share(rounds,score,busts){const text=`NEAR MISS #${String(dayNumber()).padStart(3,'0')} 🎯\n\n${rounds.map(q=>q.result?.timedOut?'⌛':q.result?.bust?'🟥':q.result?.value===q.target?'🎯':q.result?.score>=90?'🟩':q.result?.score>=75?'🟨':q.result?.score>=50?'🟧':'⬜').join('  ')}\n\n${score}/500 · ${busts} BUST${busts===1?'':'S'}\n${window.location.host}`;try{if(navigator.share)await navigator.share({title:'My NEAR MISS score',text});else{await navigator.clipboard.writeText(text);toast('Score copied. Go compare.')}}catch(e){if(e.name!=='AbortError')toast('Could not share right now.')}}
   function tick(){const update=()=>{const n=new Date(),next=Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()+1),d=Math.max(0,next-n.getTime()),h=Math.floor(d/3600000),m=Math.floor(d%3600000/60000),s=Math.floor(d%60000/1000);$('countdown').textContent=[h,m,s].map(x=>String(x).padStart(2,'0')).join(':')};update();clearInterval(window.countdownInterval);window.countdownInterval=setInterval(update,1000)}
@@ -588,7 +645,25 @@
   for (const id of ['clubhouse-open', 'stats-clubhouse', 'course-caption']) {
     $(id).addEventListener('click', openClubhouse);
   }
-  preserveLegacyCourses();
+  const preview = readWeeklyPreview();
+  if (weekly.loopback(location.hostname) && !preview) {
+    $('editor-local-link').classList.remove('hidden');
+    $('footer-build').classList.add('hidden');
+  }
+  if (!preview) preserveLegacyCourses();
   updateClubhouse();
-  $('next-btn').onclick=advance;$('practice-btn').onclick=()=>start(true);$('stats-open').onclick=openStats;$('stats-close').onclick=()=>show(statsReturn);$('help-open').onclick=()=>$('help-dialog').showModal();$('about-open').onclick=()=>$('about-dialog').showModal();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('daily-label').textContent=`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`;$('footer-today').textContent=new Intl.DateTimeFormat('en',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date());resume();
+  $('next-btn').onclick=advance;$('practice-btn').onclick=()=>start(true);$('stats-open').onclick=openStats;$('stats-close').onclick=()=>show(statsReturn);$('help-open').onclick=()=>$('help-dialog').showModal();$('about-open').onclick=()=>$('about-dialog').showModal();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('daily-label').textContent=`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`;$('footer-today').textContent=new Intl.DateTimeFormat('en',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date());
+  if (preview) {
+    state.preview = true;
+    state.practice = true;
+    state.date = preview.date;
+    state.rounds = preview.questions.map(weekly.cleanQuestion);
+    document.body.classList.add('weekly-playtest');
+    $('weekly-return').classList.remove('hidden');
+    $('daily-from-practice').onclick = () => location.assign('/tools/weekly-editor.html');
+    show('game');
+    renderRound();
+  } else {
+    resume();
+  }
 })();
