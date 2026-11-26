@@ -10,4 +10,4 @@ run_worker_first = ["/api/daily-standings"]
 [[d1_databases]]
 binding = "SCORES"
 database_name = "nearmiss-scores"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "a8d6c495-93a0-4165-a7fd-366d4e51d1bf"
