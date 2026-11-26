@@ -1,0 +1,12 @@
+.git*
+.wrangler/
+node_modules/
+migrations/
+worker.mjs
+wrangler.toml
+README.md
+tools/*.cjs
+*.json
+.env*
+.dev.vars*
+tools/weekly-candidates.js

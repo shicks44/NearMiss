@@ -1,1 +1,11 @@
 @media (prefers-color-scheme: light){:root{color-scheme:light;--bg:#f7f2e3;--surface:#fffaf0;--surface2:#e9eedf;--text:#223829;--muted:#536557;--line:#c8d4bf;--green:#216844;--yellow:#8a5508;--red:#a53633}body{background:var(--bg)}.topbar,footer{border-color:var(--line)}.brand-mark,.primary-button{color:#fff}.brand-mark,.primary-button{background:#216844}.primary-button:hover{background:#164e32}.category-tag{background:#e3f0e6}.search-wrap input{border-color:#c6cec4}.secondary-button{background:#fff;border-color:var(--line)}.score-chip{color:#fff}.score-chip.close{color:#1b160d}.score-chip.bust{color:#fff}.countdown strong{color:var(--text)}dialog{background:#fff;border-color:#cbd2ca;color:var(--text)}dialog p{color:#4d554d}.toast{background:#fff;color:var(--text);border-color:var(--line)}}
+
+#standings-toggle { align-self: flex-start; font-size: 0.8rem; padding: 0.3rem 0.65rem; }
+.daily-standings { padding: 0.4rem 0.65rem; font-size: 0.8rem; }
+.daily-standings p { margin: 0 0 0.2rem; }
+.standings-row { display: grid; grid-template-columns: 7rem minmax(0, 1fr) 3rem; align-items: center; gap: 0.4rem; min-height: 1rem; }
+.standings-row > :last-child { text-align: right; }
+.standings-track { height: 0.35rem; border-radius: 1rem; background: color-mix(in srgb, currentColor 15%, transparent); }
+.standings-bar { display: block; height: 100%; border-radius: inherit; background: currentColor; opacity: 0.55; }
+.your-band { font-weight: bold; }
+.your-band .standings-bar { opacity: 1; }

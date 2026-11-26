@@ -63,3 +63,9 @@
 
 .editor-review-note { flex: 1 0 100%; }
 .source-preview { color: var(--green); font-size: 12px; justify-self: start; }
+
+.candidate-review p { margin: 0 0 6px; }
+.candidate-question { font-size: 1.05rem; font-weight: 700; }
+.candidate-details { margin-top: 10px; }
+.candidate-details summary { cursor: pointer; }
+.candidate-details[open] .editor-fields { margin-top: 10px; }

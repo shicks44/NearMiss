@@ -1,0 +1,13 @@
+name = "nearmiss"
+main = "worker.mjs"
+compatibility_date = "2026-11-25"
+
+[assets]
+directory = "."
+binding = "ASSETS"
+run_worker_first = ["/api/daily-standings"]
+
+[[d1_databases]]
+binding = "SCORES"
+database_name = "nearmiss-scores"
+database_id = "00000000-0000-0000-0000-000000000000"

@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const dayMs = 86400000;
+  const rotationStart = Date.UTC(2026, 10, 25);
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const previewKey = 'nearmiss-weekly-playtest-v1';
   const loopback = host => ['localhost', '127.0.0.1', '[::1]'].includes(host);
@@ -109,22 +110,40 @@
     ].map(questionIdentity));
   }
 
+  function dailyCandidates(date, trivia) {
+    const index = Math.max(0, (Date.parse(date) - rotationStart) / dayMs);
+    return (trivia.schedules[0][index] ?? []).map(q =>
+      cleanQuestion(q.bank ? { ...q, numeric: false, answers: trivia.answersFor(q.bank) } : q));
+  }
+
+  function gameplayKey(question) {
+    const { category, unit, target, answers } = cleanQuestion(question);
+    return JSON.stringify([questionIdentity(question), category, unit, target, answers]);
+  }
+
+  function availableForDate(question, reserved, sameDay) {
+    return !reserved.has(questionIdentity(question))
+      || sameDay.some(original => gameplayKey(original) === gameplayKey(question));
+  }
+
   function checkWeek(draft, trivia, schedule = {}) {
     const dates = weekDates(draft?.monday);
     if (draft?.version !== 1 || !dates.length || !draft.days || typeof draft.days !== 'object') {
       return ['Use a version 1 draft with a Monday in YYYY-MM-DD format and seven dated days.'];
     }
     const errors = [];
-    const used = existingIdentities(trivia, schedule);
+    const reserved = existingIdentities(trivia, {});
+    const used = new Set(Object.values(schedule).flat().map(questionIdentity));
     for (const date of dates) {
       const day = draft.days[date];
+      const sameDay = dailyCandidates(date, trivia);
       if (Object.hasOwn(schedule, date)) errors.push(`${date}: A reviewed set is already scheduled.`);
       if (!isApproved(day)) errors.push(`${date}: Needs a reviewer’s approval for the current questions.`);
       errors.push(...validationErrors(day?.questions, trivia.topicOf).map(error => `${date}: ${error}`));
       for (const q of Array.isArray(day?.questions) ? day.questions : []) {
         if (!nonempty(q?.prompt)) continue;
         const id = questionIdentity(q);
-        if (used.has(id)) errors.push(`${date}: Question already in Daily, Practice, or this week: ${q.prompt}`);
+        if (used.has(id) || !availableForDate(q, reserved, sameDay)) errors.push(`${date}: Question already in Daily, Practice, or this week: ${q.prompt}`);
         used.add(id);
       }
     }
@@ -133,6 +152,6 @@
 
   globalThis.NearMissWeekly = {
     daysOfWeek, previewKey, loopback, weekDates, upcomingMonday, cleanQuestion, questionIdentity,
-    validationErrors, fingerprint, isApproved, existingIdentities, checkWeek
+    validationErrors, fingerprint, isApproved, existingIdentities, dailyCandidates, availableForDate, rotationStart, checkWeek
   };
 })();

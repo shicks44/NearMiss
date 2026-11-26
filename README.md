@@ -29,11 +29,19 @@ This is a static site with `index.html` at the repository root. It can be import
 
 ## Known limits
 
-Progress is local to the browser. The question data and scoring code ship to each visitor, so daily scores are not cheat-resistant. There are no accounts, server-backed submissions, leaderboards, or shared group challenges yet.
+Progress stays in browser storage. With the Worker and D1 enabled, finishing today’s Daily also sends the final score and a random browser ID to the standings service. Each browser ID contributes its first score for the UTC date. Submissions are casual and client-reported. There are no accounts or cross-device identities.
+
+## Cloudflare Daily standings
+
+1. Run `npx wrangler d1 create nearmiss-scores` and put the returned database ID in `wrangler.toml`.
+2. For local testing, run `npx wrangler d1 migrations apply nearmiss-scores --local`, then `npx wrangler dev --port 3000`. Finish a Daily and open **Daily standings** on the scorecard. Use separate browser profiles to test multiple players.
+3. When ready to release, run `npx wrangler d1 migrations apply nearmiss-scores --remote` before deploying the `nearmiss` Worker with this configuration. Verify the custom domain after deployment.
+
+Static hosting still serves the game. Shared standings require the Worker and D1.
 ## Editorial weeks
 
 1. Start the local web server and open [Weekly Editor](http://127.0.0.1:3000/tools/weekly-editor.html). Pick the Monday for the week. The editor creates a draft for Monday through Sunday.
-2. Ask Codex to prepare a NearMiss week draft for that Monday, or enter the questions directly. Import or export the draft JSON to share it with teammates. Drafts stay in the browser or the files you share.
+2. Open the week to fill empty holes from each date’s Daily lineup and unused alternates. Review the question, answer, and clue on each card. Use **Swap question** for a different suggestion or open **Question details** to pick an alternate. Add more alternates for a Monday in `tools/weekly-candidates.js` if the pool runs low. Export the draft JSON to share selections with reviewers.
 3. Open each source, use **Playtest day**, and leave review notes or approve the five holes. Editing a question clears that day's approval. Importing a teammate’s copy combines approvals for matching questions. The editor asks before replacing conflicting local questions.
 4. Export the reviewed week. From the repository folder run:
 

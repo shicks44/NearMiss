@@ -20,8 +20,20 @@
     wright: ['Smithsonian National Air and Space Museum, Wright Flyer', 'https://collections.si.edu/search/detail/edanmdm%3Anasm_A19610048000'],
     octopus: ['NOAA library, Giant Pacific Octopus', 'https://repository.library.noaa.gov/view/noaa/34671/noaa_34671_DS1.pdf'],
     titanic: ['NOAA, RMS Titanic', 'https://www.gc.noaa.gov/documents/05varmer2006an.pdf'],
+    squid: ['Smithsonian Ocean, giant squid eye', 'https://ocean.si.edu/ocean-life/invertebrates/largest-eye-world-giant-squid'],
+    duck: ['Guinness World Records, largest bath toy', 'https://www.guinnessworldrecords.com/world-records/776594-largest-bath-toy'],
+    rubberBand: ['Guinness World Records, largest rubber band ball', 'https://www.guinnessworldrecords.com/world-records/largest-rubber-band-ball'],
     mint: ['The Royal Mint, 12-sided £1 coin', 'https://www.royalmint.com/new-pound-coin/']
   };
+
+  const crowdFacts = [
+    ['liberty', 'LANDMARKS', 'How long is the Statue of Liberty’s index finger?', 'feet', 8, 'An adult human is shorter than this finger.'],
+    ['liberty', 'LANDMARKS', 'How wide is the Statue of Liberty’s mouth?', 'feet', 3, 'Think of the width of a household appliance.'],
+    ['liberty', 'LANDMARKS', 'How thick is the Statue of Liberty’s tablet?', 'feet', 2, 'It is thicker than a big hardback book, but thinner than a doorway is wide.'],
+    ['squid', 'OCEAN LIFE', 'How wide can a giant squid’s eye get?', 'inches', 10, 'Picture a dinner plate, or about the width of your head.'],
+    ['duck', 'ODD RECORDS', 'How tall was the inflatable rubber duck floated in France in 2007?', 'metres', 26, 'Its head would be around the upper floors of an apartment building.'],
+    ['rubberBand', 'ODD RECORDS', 'How heavy was Detroit’s record-setting rubber band ball in 2026?', 'pounds', 11578, 'Guinness compared its weight to an elephant.']
+  ];
 
   const oddFacts = [
     ['thanksgiving', 'FOOD', 'About how many calories are in a traditional American Thanksgiving dinner, before drinks and appetizers, in a widely cited estimate?', 'calories', 3000, 'A standard nutrition-label reference is 2,000 calories for an entire day.'],
@@ -60,7 +72,9 @@
     ['giraffe', 'ANIMALS', 'How fast is the reported record running speed of a giraffe, in miles per hour?', 'mph', 34.7, 'A brisk human walk is around 3 miles per hour.'],
     ['mint', 'POCKET CHANGE', 'How many millimetres across is a modern British one-pound coin at its widest point?', 'mm', 23.43, 'A U.S. dime is about 18 millimetres across.'],
     ['nails', 'ODD RECORDS', 'How many consecutive donuts did Bari Musawwir perform in a monster truck for his Guinness record?', 'spins', 58, 'Only full circles count as donuts for the record.']
-  ].map(([ref, category, prompt, unit, target, hint]) => ({
+  ];
+
+  const factCards = facts => facts.map(([ref, category, prompt, unit, target, hint]) => ({
     category, prompt, unit, target, hint, numeric: true, difficulty: 'ESTIMATE',
     source: refs[ref][0], url: refs[ref][1]
   }));
@@ -154,7 +168,7 @@
     'NATURE': 'nature', 'NATURAL WONDERS': 'nature', 'ODD LAKES': 'nature', 'DEEP WATER': 'nature',
     'FORESTS': 'forests', 'POPULATION': 'population', 'CITY LIVING': 'population',
     'LAND & MAPS': 'geography', 'LIFE EXPECTANCY': 'health',
-    'LANDMARKS': 'structures', 'ENGINEERING': 'structures',
+    'LANDMARKS': 'structures', 'BIG LANDMARKS': 'structures', 'ENGINEERING': 'structures',
     'TRANSPORT': 'transport', 'AIR TRAVEL': 'transport',
     'SPACEFLIGHT': 'space', 'MOON LANDING': 'space', 'SPACE SOUVENIRS': 'space',
     'ART': 'culture', 'MUSEUM PIECES': 'culture', 'BOOKS & CULTURE': 'culture',
@@ -174,43 +188,8 @@
     return `${prefix} ${numberHint(rounded, unit)}. The ${noun} here is ${direction}.`;
   }
 
-  function familiarComparisons(decks) {
-    return decks.flatMap(deck => {
-      const questions = [];
-      const subjects = { MOVIES: 'original theatrical runtime', ANIMALS: 'typical lifespan', MOUNTAINS: 'summit elevation' };
-      const subject = subjects[deck.category];
-      if (!subject) return questions;
-      for (const [index, [first, a]] of deck.items.entries()) {
-        for (const [second, b] of deck.items.slice(index + 1)) {
-          const target = Math.abs(a - b);
-          if (target < Math.max(a, b) * 0.15) continue;
-          const hint = deck.category === 'MOVIES' ? 'A two-hour movie runs 120 minutes. Think of which title takes up more of an evening.'
-            : deck.category === 'ANIMALS' ? 'Think about whether each animal lives for just a few years or for several decades.'
-            : 'Compare their summit heights above sea level, not the height of the slopes themselves.';
-          questions.push({
-            category: deck.category, unit: deck.unit, source: deck.source, url: deck.url,
-            numeric: true, difficulty: 'ESTIMATE', target, hint,
-            prompt: `What is the difference in ${subject} between ${first} and ${second}?`
-          });
-        }
-      }
-      return questions;
-    });
-  }
-
-  function sportsFacts() {
-    return Object.entries(window.nearMissSportsData).reverse().flatMap(([season, teams]) =>
-      teams.filter(([, wins, games]) => wins * 2 !== games).map(([team, wins, games]) => ({
-        category: 'SPORTS', numeric: true, difficulty: 'ESTIMATE', unit: 'wins', target: wins,
-        prompt: `How many regular-season games did the ${team} win in ${season}?`,
-        hint: `They played ${games} games. They won ${wins > games / 2 ? 'more' : 'fewer'} than half.`,
-        source: 'Major League Baseball regular-season standings', url: `https://www.mlb.com/standings/${season}`
-      }))
-    );
-  }
-
   function buildBank(random, decks, estimates) {
-    const featured = [...oddFacts, ...estimates.filter(q =>
+    const featured = [...factCards(oddFacts), ...estimates.filter(q =>
       q.difficulty === 'CHALLENGE' && ['POCKET CHANGE', 'ODD RECORDS', 'DEEP WATER', 'MOON LANDING', 'SPACE SOUVENIRS', 'ODD LAKES'].includes(q.category)
     )].map(question => ({ ...question, hint: question.hint ?? featuredHints[question.category] }));
     const familiar = decks.filter(deck => ['ANIMALS', 'MOVIES', 'MOUNTAINS', 'POCKET CHANGE', 'COIN DIAMETERS'].includes(deck.category));
@@ -312,8 +291,7 @@
       featured,
       world: mix(worldFacts, random),
       general: mix([...foodDirect, ...familiarFacts], random),
-      comparison: mix(foodCompared, random),
-      additional: [...familiarComparisons(familiar), ...sportsFacts()]
+      comparison: mix(foodCompared, random)
     };
   }
 
@@ -334,78 +312,46 @@
     }
   }
 
-  function variedSchedule(original, additional, priority) {
+  function variedSchedule(cards, priority) {
     const groups = new Map();
-    for (const question of [...original.flat(), ...additional]) {
+    for (const question of cards) {
       const topic = topicOf(question);
       if (!groups.has(topic)) groups.set(topic, []);
       groups.get(topic).push(question);
     }
     const buckets = [...groups.values()].map(questions => ({
       questions: questions.sort((a, b) => Number(priority.has(b)) - Number(priority.has(a))),
-      world: isWorldFact(questions[0]),
       remaining: 0, index: 0
     }));
-    const world = buckets.filter(bucket => bucket.world);
-    const other = buckets.filter(bucket => !bucket.world);
-    const capacity = (group, length) => group.reduce((sum, bucket) => sum + Math.min(length, bucket.questions.length), 0);
-    let length = original.length;
-    while (length && capacity(other, length) + Math.min(length * 2, capacity(world, length)) < length * 5) length--;
-    const worldSlots = Math.max(0, length * 5 - capacity(other, length));
-    for (const [group, limit] of [[world, worldSlots], [other, length * 5 - worldSlots]]) {
-      for (const bucket of group) bucket.remaining = Math.min(length, bucket.questions.length);
-      let excess = group.reduce((sum, bucket) => sum + bucket.remaining, 0) - limit;
-      while (excess > 0) {
-        const largest = group.reduce((a, b) => a.remaining >= b.remaining ? a : b);
-        largest.remaining--;
-        excess--;
-      }
+    let length = Math.floor(cards.length / 5);
+    while (length && buckets.reduce((sum, bucket) => sum + Math.min(length, bucket.questions.length), 0) < length * 5) length--;
+    for (const bucket of buckets) bucket.remaining = Math.min(length, bucket.questions.length);
+    let excess = buckets.reduce((sum, bucket) => sum + bucket.remaining, 0) - length * 5;
+    while (excess > 0) {
+      const largest = buckets.reduce((a, b) => a.remaining >= b.remaining ? a : b);
+      largest.remaining--;
+      excess--;
     }
 
     const sets = [];
     let previous = new Set();
     for (let left = length; left > 0; left--) {
       const available = buckets.filter(bucket => bucket.remaining > 0);
-      const required = available.filter(bucket => bucket.remaining === left);
-      const selected = [...required];
-      const choices = available.filter(bucket => !required.includes(bucket));
+      const selected = available.filter(bucket => bucket.remaining === left);
       const head = bucket => bucket.questions[bucket.index];
-      const worldRemaining = world.reduce((sum, bucket) => sum + bucket.remaining, 0);
-      const minimumWorld = Math.max(0, worldRemaining - 2 * (left - 1), 5 - available.filter(q => !q.world).length);
-      let worldCount = selected.filter(bucket => bucket.world).length;
-      choices.sort((a, b) => Number(previous.has(a)) - Number(previous.has(b))
-        || Number(priority.has(head(b))) - Number(priority.has(head(a))) || a.remaining - b.remaining);
-      const remainingSlots = () => 5 - selected.length;
-      for (const bucket of choices) {
-        if (worldCount >= minimumWorld) break;
-        if (bucket.world) {
-          selected.push(bucket);
-          worldCount++;
-        }
+      const choices = available.filter(bucket => !selected.includes(bucket))
+        .sort((a, b) => Number(previous.has(a)) - Number(previous.has(b))
+          || Number(priority.has(head(b))) - Number(priority.has(head(a))) || b.remaining - a.remaining);
+      if (selected.length < 5 && !selected.some(bucket => !head(bucket).numeric)) {
+        const named = choices.findIndex(bucket => !head(bucket).numeric);
+        if (named >= 0) selected.push(...choices.splice(named, 1));
       }
-      const canSelect = bucket => !selected.includes(bucket) && (!bucket.world || worldCount < 2);
-      if (remainingSlots() && !selected.some(bucket => !head(bucket).numeric)) {
-        const named = choices.find(bucket => canSelect(bucket) && !head(bucket).numeric);
-        if (named) {
-          selected.push(named);
-          if (named.world) worldCount++;
-        }
-      }
-      for (const bucket of choices) {
-        if (!remainingSlots()) break;
-        if (!canSelect(bucket)) continue;
-        selected.push(bucket);
-        if (bucket.world) worldCount++;
-      }
+      selected.push(...choices.slice(0, 5 - selected.length));
       const questions = selected.map(bucket => {
         bucket.remaining--;
         return bucket.questions[bucket.index++];
       });
-      // Give the player a foothold before the biggest leaps of scale.
-      const warmUp = questions.findIndex(q => !q.numeric && /safe example/.test(q.hint));
-      const countRange = questions.findIndex(q => q.numeric && q.unit === 'wins');
-      const opening = warmUp >= 0 ? warmUp : countRange >= 0 ? countRange
-        : questions.findIndex(q => q.numeric && !priority.has(q));
+      const opening = questions.findIndex(q => !q.numeric && /safe example/.test(q.hint));
       if (opening > 0) questions.unshift(...questions.splice(opening, 1));
       sets.push(questions);
       previous = new Set(selected);
@@ -436,8 +382,22 @@
       scheduleFactPack(sets, mode);
       return sets;
     });
-    const priority = new Set([...bank.featured, ...window.nearMissFactPack]);
-    const plans = legacy.map((sets, mode) => variedSchedule(sets, split(bank.additional, mode), priority));
+    // Older saves still use the legacy queues. New rounds use the curated pool.
+    const shortFacts = factCards(oddFacts.filter(([ref]) =>
+      !['thanksgiving', 'diamond', 'wimbledon', 'mint', 'titanic'].includes(ref)));
+    const playful = [...factCards(crowdFacts), ...window.nearMissFactPack.filter(q =>
+      !['ENGINEERING', 'EVERYDAY ODDITIES'].includes(q.category)
+      && !/trunk volume|power system|thrust|payload|747-8|peak daytime|thickest fur/i.test(q.prompt))];
+    const approachable = [...shortFacts, ...playful,
+      ...bank.namePool.filter(q => ['ANIMALS', 'MOVIES'].includes(q.category)),
+      ...bank.general.filter(q => ['ANIMALS', 'MOVIES'].includes(q.category))
+    ];
+    const shortPrompts = approachable.filter(q => q.prompt.split(/\s+/).length <= 20
+      && !/\b(?:upper|lower|high|low)[ -]end\b/i.test(q.prompt));
+    const unique = [...new Map(shortPrompts.map(q => [identity(q), q])).values()];
+    const priority = new Set(playful);
+    const shuffled = mix([...new Set(unique.map(topicOf))].map(topic => unique.filter(q => topicOf(q) === topic)), random);
+    const plans = [0, 1].map(mode => variedSchedule(split(shuffled, mode), priority));
     const schedules = plans.map(plan => plan.sets);
     const hints = new Map([...legacy.flat(2), ...schedules.flat(2)].map(question => [identity(question), question.hint]));
     const hintFor = question => hints.get(identity(question)) ?? question.hint ?? (question.answers

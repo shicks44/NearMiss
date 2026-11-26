@@ -25,7 +25,6 @@
     return Array.from(countByValue.keys()).filter(value => countByValue.get(value) === 1);
   }
 
-  const rotationStart = Date.UTC(2026, 10, 25);
   const trivia = window.nearMissTrivia;
   const weekly = window.NearMissWeekly;
   const authoredSchedule = window.nearMissWeeklySchedule;
@@ -55,19 +54,16 @@
     if (!scheduled) return [];
     const unseen = scheduled.filter(q => !seen.has(trivia.identity(q)));
     const topicsUsed = new Set(unseen.map(trivia.topicOf));
-    let worldSlots = unseen.filter(trivia.isWorldFact).length;
     const used = new Set(seen);
     const rounds = [];
     for (const question of scheduled) {
       let selected = question;
       if (used.has(trivia.identity(question))) {
         const topic = trivia.topicOf(question);
-        const valid = candidate => !used.has(trivia.identity(candidate)) && !topicsUsed.has(trivia.topicOf(candidate))
-          && (!trivia.isWorldFact(candidate) || worldSlots < 2);
+        const valid = candidate => !used.has(trivia.identity(candidate)) && !topicsUsed.has(trivia.topicOf(candidate));
         selected = trivia.reserves[mode].find(candidate => valid(candidate) && trivia.topicOf(candidate) === topic)
           ?? trivia.reserves[mode].find(valid);
         if (!selected) return [];
-        if (trivia.isWorldFact(selected)) worldSlots++;
       }
       used.add(trivia.identity(selected));
       topicsUsed.add(trivia.topicOf(selected));
@@ -283,8 +279,8 @@
   function start(practice = false) {
     const date = utcDate();
     const saved = read();
-    let index = practice ? saved.balancedPracticeCursor ?? 0
-      : Math.max(0, Math.floor((Date.parse(date) - rotationStart) / 86400000));
+    let index = practice ? saved.curatedPracticeCursor ?? 0
+      : Math.max(0, Math.floor((Date.parse(date) - weekly.rotationStart) / 86400000));
     const seen = playedQuestions(saved);
     const authored = practice ? null : authoredSchedule[date];
     let rounds = authored ? authored.map(q => ({ ...q })) : makePuzzle(index, practice, seen);
@@ -296,7 +292,7 @@
       return;
     }
     if (practice) {
-      saved.balancedPracticeCursor = index + 1;
+      saved.curatedPracticeCursor = index + 1;
       saved.balancedPracticeSeen = [...(saved.balancedPracticeSeen ?? []), ...rounds.map(trivia.identity)];
       write(saved);
     }
@@ -597,7 +593,7 @@
   function renderResults(result, newUnlocks = []){updateClubhouse();const notice=$('unlock-notice');notice.classList.toggle('hidden',!newUnlocks.length);notice.textContent=newUnlocks.length?`Unlocked: ${newUnlocks.join(', ')}`:'';
     $('daily-from-practice').classList.toggle('hidden',!state.practice);
     if (state.preview) $('daily-from-practice').textContent = 'Back to Weekly Editor';
-    const rounds=result.rounds||[],score=result.score??rounds.reduce((a,q)=>a+(q.result?.score||0),0),busts=rounds.filter(q=>q.result?.bust).length,perfect=rounds.filter(q=>q.result?.value===q.target).length;$('final-title').textContent=titleFor(score)+'.';$('total-score').textContent=String(score).padStart(3,'0');$('results-sub').textContent=state.preview?'Playtest complete. Daily scores and streaks are unchanged.':state.practice?'Practice round complete. Daily stats stay untouched.':`Daily no. ${String(dayNumber()).padStart(3,'0')} · ${new Intl.DateTimeFormat('en',{weekday:'long',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(utcDate()+'T00:00:00Z'))} UTC`;$('score-list').innerHTML=rounds.map((q,i)=>`<div class="score-row"><span class="score-index">0${i+1}</span><div><div class="score-name">${escapeHtml(q.result?.name||'—')}</div><div class="score-category">${escapeHtml(q.category)} · ${escapeHtml(q.result?.label||'')}</div></div><span class="score-points">${q.result?.score??0}</span><span class="score-symbol ${q.result?.bust?'bust':''}">${q.result?.timedOut?'–':q.result?.bust?'×':q.result?.value===q.target?'★':'●'}</span></div>`).join('');const best=rounds.reduce((a,q)=>!a||q.result.score>a.result.score?q:a,null);$('result-metrics').innerHTML=`<div class="metric"><span>BUSTS</span><b>${busts}</b></div><div class="metric"><span>HOLES IN ONE</span><b>${perfect}</b></div><div class="metric"><span>BEST ROUND</span><b>${escapeHtml(best?.category||'—')}</b></div>`;$('practice-btn').textContent=state.practice?'Try another practice':'Practice mode';$('share-btn').onclick=()=>share(rounds,score,busts);tick();show('results')}
+    const rounds=result.rounds||[],score=result.score??rounds.reduce((a,q)=>a+(q.result?.score||0),0),busts=rounds.filter(q=>q.result?.bust).length,perfect=rounds.filter(q=>q.result?.value===q.target).length;$('final-title').textContent=titleFor(score)+'.';$('total-score').textContent=String(score).padStart(3,'0');$('results-sub').textContent=state.preview?'Playtest complete. Daily scores and streaks are unchanged.':state.practice?'Practice round complete. Daily stats stay untouched.':`Daily no. ${String(dayNumber()).padStart(3,'0')} · ${new Intl.DateTimeFormat('en',{weekday:'long',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(utcDate()+'T00:00:00Z'))} UTC`;$('score-list').innerHTML=rounds.map((q,i)=>`<div class="score-row"><span class="score-index">0${i+1}</span><div><div class="score-name">${escapeHtml(q.result?.name||'—')}</div><div class="score-category">${escapeHtml(q.category)} · ${escapeHtml(q.result?.label||'')}</div></div><span class="score-points">${q.result?.score??0}</span><span class="score-symbol ${q.result?.bust?'bust':''}">${q.result?.timedOut?'–':q.result?.bust?'×':q.result?.value===q.target?'★':'●'}</span></div>`).join('');const best=rounds.reduce((a,q)=>!a||q.result.score>a.result.score?q:a,null);$('result-metrics').innerHTML=`<div class="metric"><span>BUSTS</span><b>${busts}</b></div><div class="metric"><span>HOLES IN ONE</span><b>${perfect}</b></div><div class="metric"><span>BEST ROUND</span><b>${escapeHtml(best?.category||'—')}</b></div>`;$('practice-btn').textContent=state.practice?'Try another practice':'Practice mode';$('share-btn').onclick=()=>share(rounds,score,busts);tick();show('results');window.updateDailyStandings?.(result.date ?? state.date, score, state.practice)}
   const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   async function share(rounds,score,busts){const text=`NEAR MISS #${String(dayNumber()).padStart(3,'0')} 🎯\n\n${rounds.map(q=>q.result?.timedOut?'⌛':q.result?.bust?'🟥':q.result?.value===q.target?'🎯':q.result?.score>=90?'🟩':q.result?.score>=75?'🟨':q.result?.score>=50?'🟧':'⬜').join('  ')}\n\n${score}/500 · ${busts} BUST${busts===1?'':'S'}\n${window.location.host}`;try{if(navigator.share)await navigator.share({title:'My NEAR MISS score',text});else{await navigator.clipboard.writeText(text);toast('Score copied. Go compare.')}}catch(e){if(e.name!=='AbortError')toast('Could not share right now.')}}
   function tick(){const update=()=>{const n=new Date(),next=Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()+1),d=Math.max(0,next-n.getTime()),h=Math.floor(d/3600000),m=Math.floor(d%3600000/60000),s=Math.floor(d%60000/1000);$('countdown').textContent=[h,m,s].map(x=>String(x).padStart(2,'0')).join(':')};update();clearInterval(window.countdownInterval);window.countdownInterval=setInterval(update,1000)}
