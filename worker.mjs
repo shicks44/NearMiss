@@ -1,5 +1,7 @@
 const endpoint = '/api/daily-standings';
-const bands = [[0, 99], [100, 199], [200, 299], [300, 399], [400, 500]];
+const bands = Array.from({ length: 10 }, (_, index) => [
+  index * 50, index === 9 ? 500 : index * 50 + 49
+]);
 
 function reply(value, status = 200) {
   return Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });

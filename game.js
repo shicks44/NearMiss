@@ -184,7 +184,6 @@
     renderCoursePage(unlocked.courses, selectedCourse);
     renderCollection($('ball-grid'), balls, unlocked.balls, selectedBall, 'ball');
     const next = courses.find(course => !unlocked.courses.includes(course));
-    $('course-caption').textContent = selectedCourse.name;
     const streak = currentStreak(saved.stats);
     $('clubhouse-progress').textContent = next
       ? `Daily streak: ${streak} / ${next.days} days for ${next.name}.`
@@ -311,10 +310,12 @@
       finish();
       return;
     }
-    $('round-category').textContent = q.category;
-    $('round-difficulty').textContent = q.difficulty;
     $('round-count').innerHTML = `${String(state.index + 1).padStart(2, '0')} <b>/ 05</b>`;
-    $('round-progress').style.width = `${((state.index + 1) / 5) * 100}%`;
+    $('round-count').setAttribute('aria-label', `Hole ${state.index + 1} of 5`);
+    Array.from($('round-progress').children).forEach((hole, index) => {
+      hole.classList.toggle('complete', index < state.index);
+      hole.classList.toggle('current', index === state.index);
+    });
     $('question-prompt').textContent = q.prompt;
     $('baseline-hint').textContent = `For scale: ${trivia.hintFor(q)}`;
     $('target-label').textContent = q.numeric ? 'GUESS IN' : 'THE TARGET';
@@ -638,17 +639,16 @@
       $(`${next}-tab`).focus();
     });
   }
-  for (const id of ['clubhouse-open', 'stats-clubhouse', 'course-caption']) {
+  for (const id of ['clubhouse-open', 'stats-clubhouse']) {
     $(id).addEventListener('click', openClubhouse);
   }
   const preview = readWeeklyPreview();
   if (weekly.loopback(location.hostname) && !preview) {
     $('editor-local-link').classList.remove('hidden');
-    $('footer-build').classList.add('hidden');
   }
   if (!preview) preserveLegacyCourses();
   updateClubhouse();
-  $('next-btn').onclick=advance;$('practice-btn').onclick=()=>start(true);$('stats-open').onclick=openStats;$('stats-close').onclick=()=>show(statsReturn);$('help-open').onclick=()=>$('help-dialog').showModal();$('about-open').onclick=()=>$('about-dialog').showModal();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('daily-label').textContent=`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`;$('footer-today').textContent=new Intl.DateTimeFormat('en',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date());
+  $('next-btn').onclick=advance;$('practice-btn').onclick=()=>start(true);$('stats-open').onclick=openStats;$('stats-close').onclick=()=>show(statsReturn);$('help-open').onclick=()=>$('help-dialog').showModal();$('about-open').onclick=()=>{$('help-dialog').close();$('about-dialog').showModal()};document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('daily-label').textContent=`DAILY NO. ${String(dayNumber()).padStart(3,'0')}`;
   if (preview) {
     state.preview = true;
     state.practice = true;

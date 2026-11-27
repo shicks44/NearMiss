@@ -74,9 +74,9 @@
   };
   const waterColors = ['#28778c', '#55a8ad', '#9fe0d4', '#def8db', '#b8eedc'];
 
-  function rect(color, x, y, width, height) {
-    ctx.fillStyle = color;
-    ctx.fillRect(Math.round(x), Math.round(y), width, height);
+  function rect(color, x, y, width, height, context = ctx) {
+    context.fillStyle = color;
+    context.fillRect(Math.round(x), Math.round(y), width, height);
   }
 
   function pixels(color, points) {
@@ -224,37 +224,44 @@
     ctx.restore();
   }
 
-  function golfer(pose) {
-    rect('#23463b', 22, 79, 20, 3);
-    rect('#27364b', 27, 71, 4, 8);
-    rect('#263445', 33, 72, 4, 7);
-    rect('#f7ebce', 27, 78, 5, 2);
-    rect('#f7ebce', 33, 78, 6, 2);
-    rect('#e89444', 26, 63, 12, 10);
-    rect('#ffb252', 26, 63, 4, 8);
-    rect('#f4bd8d', 28, 55, 9, 8);
-    rect('#254b4b', 27, 53, 10, 4);
-    rect('#254b4b', 32, 56, 7, 2);
-    rect('#382f39', 35, 58, 1, 2);
+  function golfer(pose, context = ctx) {
+    rect('#23463b', 22, 79, 20, 3, context);
+    rect('#27364b', 27, 71, 4, 8, context);
+    rect('#263445', 33, 72, 4, 7, context);
+    rect('#f7ebce', 27, 78, 5, 2, context);
+    rect('#f7ebce', 33, 78, 6, 2, context);
+    rect('#e89444', 26, 63, 12, 10, context);
+    rect('#ffb252', 26, 63, 4, 8, context);
+    rect('#f4bd8d', 28, 55, 9, 8, context);
+    rect('#254b4b', 27, 53, 10, 4, context);
+    rect('#254b4b', 32, 56, 7, 2, context);
+    rect('#382f39', 35, 58, 1, 2, context);
     const clubs = [
       [[36, 66], [40, 68], [43, 76], [46, 77]],
       [[36, 64], [32, 61], [23, 54], [21, 55]],
       [[36, 64], [39, 61], [45, 50], [48, 49]]
     ];
     const [shoulder, hands, shaft, head] = clubs[pose];
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#f4bd8d';
-    ctx.beginPath();
-    ctx.moveTo(...shoulder);
-    ctx.lineTo(...hands);
-    ctx.stroke();
-    ctx.strokeStyle = '#f6e9cc';
-    ctx.beginPath();
-    ctx.moveTo(...hands);
-    ctx.lineTo(...shaft);
-    ctx.lineTo(...head);
-    ctx.stroke();
+    context.lineWidth = 2;
+    context.strokeStyle = '#f4bd8d';
+    context.beginPath();
+    context.moveTo(...shoulder);
+    context.lineTo(...hands);
+    context.stroke();
+    context.strokeStyle = '#f6e9cc';
+    context.beginPath();
+    context.moveTo(...hands);
+    context.lineTo(...shaft);
+    context.lineTo(...head);
+    context.stroke();
   }
+
+  window.drawStandingsGolfer = canvas => {
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.translate(-20, -47);
+    golfer(2, context);
+  };
 
   function ball(x, y) {
     rect('#344753', x - 2, y - 2, 5, 5);
